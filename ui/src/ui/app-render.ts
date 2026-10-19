@@ -465,6 +465,7 @@ export function renderApp(state: AppViewState) {
               error: state.lastError,
               sessions: state.sessionsResult,
               focusMode: chatFocus,
+              pet: state.onboarding ? false : state.settings.chatPet,
               onRefresh: () => {
                 state.resetToolStream();
                 return Promise.all([loadChatHistory(state), refreshChatAvatar(state)]);

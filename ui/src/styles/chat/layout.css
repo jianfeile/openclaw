@@ -281,6 +281,21 @@
   box-sizing: border-box;
 }
 
+/* Chat pet (Nuo Nuo) - sits beside the composer and peeks over its top edge */
+.chat-compose__pet {
+  flex: none;
+  align-self: flex-end;
+  width: 72px;
+  height: 72px;
+  margin-top: -36px;
+  margin-bottom: -2px;
+  --chat-pet-shadow: rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="light"] .chat-compose__pet {
+  --chat-pet-shadow: rgba(60, 40, 30, 0.16);
+}
+
 /* Chat controls - moved to content-header area, left aligned */
 .chat-controls {
   display: flex;

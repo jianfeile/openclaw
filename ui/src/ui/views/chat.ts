@@ -16,6 +16,8 @@ import {
 } from "../chat/grouped-render";
 import { renderMarkdownSidebar } from "./markdown-sidebar";
 import "../components/resizable-divider";
+import "../components/chat-pet";
+import { derivePetMood } from "../chat/pet-state";
 
 export type CompactionIndicatorStatus = {
   active: boolean;
@@ -46,6 +48,8 @@ export type ChatProps = {
   sessions: SessionsListResult | null;
   // Focus mode
   focusMode: boolean;
+  // Chat pet (Nuo Nuo) beside the composer; defaults to shown
+  pet?: boolean;
   // Sidebar state
   sidebarOpen?: boolean;
   sidebarContent?: string | null;
@@ -193,6 +197,14 @@ export function renderChat(props: ChatProps) {
     name: props.assistantName,
     avatar: props.assistantAvatar ?? props.assistantAvatarUrl ?? null,
   };
+  const showPet = props.pet !== false;
+  const petMood = derivePetMood({
+    connected: props.connected,
+    sending: props.sending,
+    stream: props.stream,
+    draft: props.draft,
+    error: props.error,
+  });
 
   const hasAttachments = (props.attachments?.length ?? 0) > 0;
   const composePlaceholder = props.connected
@@ -330,6 +342,9 @@ export function renderChat(props: ChatProps) {
       <div class="chat-compose">
         ${renderAttachmentPreview(props)}
         <div class="chat-compose__row">
+          ${showPet
+            ? html`<chat-pet class="chat-compose__pet" .mood=${petMood}></chat-pet>`
+            : nothing}
           <label class="field chat-compose__field">
             <span>Message</span>
             <textarea

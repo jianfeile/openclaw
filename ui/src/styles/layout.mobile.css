@@ -232,6 +232,16 @@
     gap: 8px;
   }
 
+  /* Narrow screens: float the pet above the composer so the textarea keeps its width */
+  .chat-compose__pet {
+    position: absolute;
+    top: -32px;
+    left: 6px;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+  }
+
   .chat-compose__field textarea {
     min-height: 60px;
     padding: 8px 10px;
