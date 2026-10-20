@@ -5,7 +5,7 @@ import type { PetState } from "../chat/pet-state";
  * Nuo Nuo artwork: a mochi otter hugging its favourite pebble, drawn on a
  * 200x200 canvas. Every expression is in the markup; `data-state` on the
  * root picks which eyes/mouth/effects are visible and which animations run.
- * Generated from the character sheet (nuonuo.html); keep the two in sync.
+ * Generated from the character sheet (docs/assets/nuonuo/nuonuo.html); keep the two in sync.
  */
 export function renderNuoNuo(state: PetState): TemplateResult {
   return html`<svg class="nn" data-state=${state} viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
