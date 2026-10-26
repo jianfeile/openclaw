@@ -9,7 +9,7 @@ import {
 import { collectVitestFileFilters } from "./vitest-cli-mode.mts";
 
 export const TUI_PTY_BUILT_CLI_CANARY_PATTERN =
-  "launches openclaw (chat as local mode|tui against a real Gateway) through a real PTY";
+  "launches openclaw chat as local mode through a real PTY";
 
 // These built-CLI proofs still read source owners, but their only compiled
 // declarations belong to the production runtime registry.
