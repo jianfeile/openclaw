@@ -28,7 +28,10 @@ vi.mock("./extension-relay/gateway-relay-route.js", () => {
   if (mocks.chunksRemoved) {
     throw new Error("installed Gateway extension relay chunk was removed");
   }
-  return { disposeGatewayExtensionRelay: mocks.disposeRelay };
+  return {
+    disposeGatewayExtensionRelay: mocks.disposeRelay,
+    handleGatewayExtensionUpgrade: vi.fn(async () => false),
+  };
 });
 
 // mock-isolation: shutdown races use synthetic Chrome handles, not native browser processes.

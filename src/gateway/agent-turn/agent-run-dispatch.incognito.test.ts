@@ -68,8 +68,12 @@ function createDispatch(suffix: string, isIncognito: boolean) {
   };
 }
 
-function expectDiagnostics(value: object, isPrivate: boolean) {
-  expect(JSON.stringify(value).includes(privateReply)).toBe(!isPrivate);
+function expectDiagnostics(value: object, isPrivate: boolean, publicFields: object) {
+  if (isPrivate) {
+    expect(JSON.stringify(value)).not.toContain(privateReply);
+  } else {
+    expect(value).toMatchObject(publicFields);
+  }
 }
 
 describe.each(sessionCases)(
@@ -130,7 +134,7 @@ describe.each(sessionCases)(
       expect(frame?.[1]).toMatchObject({ status: "error", summary: privateReply });
       expect(frame?.[2]).toMatchObject({ message: privateReply });
       const responseDiagnostics = { errorMessage: frame?.[2]?.message, ...diagnostics };
-      expectDiagnostics(responseDiagnostics, isPrivate);
+      expectDiagnostics(responseDiagnostics, isPrivate, { error: privateReply });
 
       rpcSourceTesting.clear();
       const emitAcceptance = vi.fn();
@@ -144,7 +148,7 @@ describe.each(sessionCases)(
       const [replayFrame, replayMetadata] = emitAcceptance.mock.calls[0] ?? [];
       expect(replayFrame).toEqual(frame);
       const replayDiagnostics = { errorMessage: replayFrame?.[2]?.message, ...replayMetadata };
-      expectDiagnostics(replayDiagnostics, isPrivate);
+      expectDiagnostics(replayDiagnostics, isPrivate, { cached: true, errorMessage: privateReply });
     });
   },
 );
