@@ -1,5 +1,5 @@
 import { expectDefined } from "@openclaw/normalization-core";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { suspendHandlers } from "./suspend.js";
 
 const coordinator = vi.hoisted(() => ({
@@ -33,13 +33,7 @@ async function invoke(method: keyof typeof suspendHandlers, params: unknown) {
   return { respond, info };
 }
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
-});
+beforeEach(() => vi.clearAllMocks());
 
 describe("gateway suspend handlers", () => {
   it("validates the closed prepare params shape", async () => {
@@ -74,9 +68,6 @@ describe("gateway suspend handlers", () => {
     ["gateway.suspend.prepare", false],
     ["gateway.suspend.status", true],
   ] as const)("passes through %s draining results (custody=%s)", async (method, held) => {
-    if (held) {
-      vi.useFakeTimers();
-    }
     const params = held
       ? { suspensionId: "suspension-draining" }
       : { requestId: "request-draining", drain: true };
@@ -88,7 +79,7 @@ describe("gateway suspend handlers", () => {
       : [{ kind: "terminal-session", count: 1, message: "one preserved terminal" }];
     const result = {
       status: "draining",
-      ...(method === "gateway.suspend.prepare" ? { suspensionId: "suspension-draining" } : {}),
+      ...(!held ? { suspensionId: "suspension-draining" } : {}),
       expiresAtMs: 123_000,
       retryAfterMs: 20_000,
       activeCount: blockers.length,
@@ -97,7 +88,7 @@ describe("gateway suspend handlers", () => {
     };
     coordinator[held ? "status" : "prepare"].mockReturnValue(result);
     const { respond, info } = await invoke(method, params);
-    if (method === "gateway.suspend.prepare") {
+    if (!held) {
       expect(coordinator.prepare).toHaveBeenCalledWith(
         expect.objectContaining({ ...params, terminalPolicy: "preserve" }),
       );

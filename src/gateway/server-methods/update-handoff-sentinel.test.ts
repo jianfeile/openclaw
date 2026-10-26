@@ -40,13 +40,7 @@ function record(message?: string): ManagedHandoffSentinelRequest {
         expectedRevision: 123,
         completedStatus: "error",
         restored: true,
-        fallbackPayload: {
-          kind: "update",
-          status: "error",
-          ts: 123,
-          message,
-          stats: { ...identity, mode: "unknown", reason: "candidate-failed", steps: [] },
-        },
+        fallbackPayload: { kind: "update", status: "error", ts: 123, message },
         reason: "candidate-failed",
         triageHint: "Run openclaw update repair",
         serviceKind: "launchd",
@@ -56,9 +50,7 @@ function record(message?: string): ManagedHandoffSentinelRequest {
   };
 }
 
-beforeEach(() => {
-  owner.mockReset();
-});
+beforeEach(() => owner.mockReset());
 
 async function invoke(params: Record<string, unknown>) {
   const respond = vi.fn<RespondFn>();
@@ -116,9 +108,9 @@ describe("internal managed handoff sentinel Gateway boundary", () => {
   });
 
   it("does not expose owner diagnostics through the transport error", async () => {
-    owner.mockImplementation(async () => {
-      throw new Error("PostgreSQL failed for postgresql://fixture.invalid/private");
-    });
+    owner.mockRejectedValue(
+      new Error("PostgreSQL failed for postgresql://fixture.invalid/private"),
+    );
     const respond = await invoke(request);
     expect(owner).toHaveBeenCalledOnce();
     expect(respond).toHaveBeenCalledWith(false, undefined, {
