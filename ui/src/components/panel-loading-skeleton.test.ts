@@ -82,37 +82,33 @@ describe("panel presentations", () => {
     const button = document.createElement("button");
     button.type = "button";
     button.addEventListener("click", action);
-    const view = mountSolid(
-      PanelEmptyState,
-      {
-        heading: "Add file",
-        description: "Choose a file to continue.",
-        icon,
-        action: button,
-      },
-      owner,
-    );
+    const props = {
+      heading: "Add file",
+      description: "Choose a file to continue.",
+      icon,
+      action: button,
+    };
+    const view = mountSolid(PanelEmptyState, props, owner);
     const host = owner.querySelector<HTMLElement>("openclaw-panel-empty-state")!;
     const update = (label: string, data: string) => {
-      view.update({
-        heading: label,
-        description: "Choose a file to continue.",
-        icon,
-        action: button,
-      });
+      view.update({ ...props, heading: label });
       button.textContent = label;
       path.setAttribute("d", data);
     };
     update("Add file", "M1 1h10");
     const content = host.querySelector(".empty-state");
+    const expectContent = () => {
+      expect(host.querySelector(".empty-state")).toBe(content);
+      expect(host.querySelector("svg")).toBe(icon);
+      expect(icon.closest('[aria-hidden="true"]')).not.toBeNull();
+    };
     expect(icon.closest('[aria-hidden="true"]')).not.toBeNull();
     expect(host.shadowRoot).toBeNull();
     expect(getByRole(host, "button", { name: "Add file" })).toBe(button);
     expect(button.closest('[aria-hidden="true"]')).toBeNull();
     button.click();
     update("Add another file", "M2 2v10");
-    expect(host.querySelector(".empty-state")).toBe(content);
-    expect(host.querySelector("svg")).toBe(icon);
+    expectContent();
     expect(path.getAttribute("d")).toBe("M2 2v10");
     expect(host.querySelector(".empty-state__title")?.textContent).toBe("Add another file");
     expect(getByRole(host, "button", { name: "Add another file" })).toBe(button);
@@ -120,8 +116,7 @@ describe("panel presentations", () => {
     document.body.append(owner);
     expect(owner.querySelectorAll("openclaw-panel-empty-state")).toHaveLength(1);
     expect(host.querySelectorAll(".empty-state")).toHaveLength(1);
-    expect(host.querySelector("svg")).toBe(icon);
-    expect(icon.closest('[aria-hidden="true"]')).not.toBeNull();
+    expectContent();
     getByRole(host, "button", { name: "Add another file" }).click();
     update("Choose again", "M3 3h9");
     expect(path.getAttribute("d")).toBe("M3 3h9");
