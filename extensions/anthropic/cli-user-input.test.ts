@@ -91,7 +91,7 @@ it.each([
   expect(payload.questions[0]!.options[0]!.description).toBe(description);
   const questions = requestUserInput.mock.calls[0]![0].questions;
   expect(questions).toHaveLength(2);
-  expect(questions[0]!.options[0]!.description).toBe(displayed);
+  expect(questions[0]?.options?.[0]?.description).toBe(displayed);
   expect(result).toMatchObject({ behavior: "allow" });
 });
 

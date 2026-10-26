@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { expect, it, onTestFinished, vi } from "vitest";
 import { presentExecutionDecisionReceiptsInDatabase } from "../audit/execution-decision-receipts.js";
 import {
@@ -90,6 +91,7 @@ it.each([
     const [context, payloadContext] = admissions.map((work) =>
       processExecutionIdentityAdmissionWorkInDatabase(work, { database }),
     );
+    assert(context && payloadContext, "Both admission contexts must be recorded");
     expect(context.contextId).not.toBe(payloadContext.contextId);
     const inspect = (admittedContext: typeof payloadContext) =>
       presentExecutionDecisionReceiptsInDatabase(database.db, {

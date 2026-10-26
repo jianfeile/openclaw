@@ -1,12 +1,25 @@
-import { expect, it } from "vitest";
-import { resolveApprovalRequestKind, type ApprovalRequestInput } from "./approval-types.js";
+import { describe, expect, it } from "vitest";
+import { resolveApprovalRequestKind } from "./approval-types.js";
 import { buildPendingApprovalView } from "./approval-view-model.js";
+import type { ExecApprovalRequest } from "./exec-approvals.js";
+import type { PluginApprovalRequest } from "./plugin-approvals.js";
 
-const plugin = { title: "Use protected tool", description: "The plugin needs consent." };
-function pending(request: ApprovalRequestInput["request"], id = "approval-id") {
-  return buildPendingApprovalView({ id, createdAtMs: 1, expiresAtMs: 2, request });
+const approvalRequestBase = { id: "approval-id", createdAtMs: 1, expiresAtMs: 2 };
+function pluginRequest(
+  request: Partial<PluginApprovalRequest["request"]> = {},
+): PluginApprovalRequest {
+  return {
+    ...approvalRequestBase,
+    id: "plugin-approval",
+    request: {
+      title: "Use protected tool",
+      description: "The plugin needs operator consent.",
+      ...request,
+    },
+  };
 }
-function action(
+
+function approvalAction(
   approvalId: string,
   approvalKind: "exec" | "plugin" | "system-agent",
   decision: "allow-once" | "deny",
@@ -14,89 +27,112 @@ function action(
   return { type: "approval", approvalId, approvalKind, decision };
 }
 
-it("passes command analysis and external recipient scope through exec views", () => {
-  const scope = {
-    kind: "message-send" as const,
-    target: "email",
-    recipientCount: 3,
-    recipients: ["alice@example.com", "bob@example.com"],
-    audience: "external" as const,
-  };
-  const view = pending({
-    command: "python -c 'print(1)'",
-    host: "node",
-    ask: "always",
-    scope,
-    commandAnalysis: {
-      commandCount: 1,
-      nestedCommandCount: 0,
-      riskKinds: ["inline-eval"],
-      warningLines: ["Contains inline-eval: python -c"],
-    },
-  });
-  expect(view).toMatchObject({
-    approvalKind: "exec",
-    commandAnalysis: { warningLines: ["Contains inline-eval: python -c"] },
-  });
-  expect(view.scope).toEqual(scope);
-  expect(view.metadata).toContainEqual({
-    label: "Scope",
-    value: "Send to 3 recipients via email (external): alice@example.com, bob@example.com, +1 more",
-  });
-  expect(view.actions[0]?.action).toEqual(action("approval-id", "exec", "allow-once"));
-});
+describe("buildPendingApprovalView", () => {
+  it("passes command analysis through exec approval views", () => {
+    const request: ExecApprovalRequest = {
+      ...approvalRequestBase,
+      request: {
+        command: 'ls | grep "stuff" | python -c \'print("hi")\'',
+        host: "node",
+        ask: "always",
+        commandAnalysis: {
+          commandCount: 1,
+          nestedCommandCount: 0,
+          riskKinds: ["inline-eval"],
+          warningLines: ["Contains inline-eval: python -c"],
+        },
+        scope: {
+          kind: "message-send",
+          target: "email",
+          recipientCount: 3,
+          recipients: ["alice@example.com", "bob@example.com"],
+          audience: "external",
+        },
+      },
+    };
 
-it("derives plugin ownership from payload and retains fail-closed decisions", () => {
-  const scope = { kind: "external-post", target: "github", visibility: "public" } as const;
-  const request = {
-    id: "custom-id-without-prefix",
-    createdAtMs: 1,
-    expiresAtMs: 2,
-    request: { ...plugin, scope, allowedDecisions: ["allow-once"] as const },
-  };
-  Object.defineProperty(request, "approvalKind", { value: "exec", enumerable: true });
-  const view = buildPendingApprovalView(request);
-  expect(view.approvalKind).toBe("plugin");
-  expect(view.scope).toEqual(scope);
-  expect(view.metadata).toContainEqual({ label: "Scope", value: "Post publicly to github" });
-  expect(view.actions.map((descriptor) => descriptor.action)).toEqual([
-    action(request.id, "plugin", "allow-once"),
-    action(request.id, "plugin", "deny"),
-  ]);
-});
+    const view = buildPendingApprovalView(request);
 
-it("builds system-agent views with allow-once and deny only", () => {
-  const description = "Rewrite the scheduler to prefer cooperative yields.";
-  const view = pending(
+    expect(view).toMatchObject({
+      approvalKind: "exec",
+      commandAnalysis: { warningLines: ["Contains inline-eval: python -c"] },
+    });
+    expect(view.scope).toEqual(request.request.scope);
+    expect(view.metadata).toContainEqual({
+      label: "Scope",
+      value:
+        "Send to 3 recipients via email (external): alice@example.com, bob@example.com, +1 more",
+    });
+    expect(view.actions[0]?.action).toEqual(approvalAction("approval-id", "exec", "allow-once"));
+  });
+
+  it("preserves plugin ownership, scope, and fail-closed decisions", () => {
+    const request: PluginApprovalRequest = {
+      ...pluginRequest({
+        scope: { kind: "external-post", target: "github", visibility: "public" },
+        allowedDecisions: ["allow-once"],
+      }),
+      id: "custom-id-without-prefix",
+    };
+    Object.defineProperty(request, "approvalKind", { value: "exec", enumerable: true });
+
+    expect(resolveApprovalRequestKind(request)).toBe("plugin");
+    const view = buildPendingApprovalView(request);
+    expect(view.approvalKind).toBe("plugin");
+    expect(view.scope).toEqual(request.request.scope);
+    expect(view.metadata).toContainEqual({ label: "Scope", value: "Post publicly to github" });
+    expect(view.actions.map((action) => action.action)).toEqual([
+      approvalAction("custom-id-without-prefix", "plugin", "allow-once"),
+      approvalAction("custom-id-without-prefix", "plugin", "deny"),
+    ]);
+  });
+
+  it("builds system-agent pending views with allow-once and deny only", () => {
+    const request = {
+      ...approvalRequestBase,
+      id: "system-change-1",
+      request: {
+        title: "Apply proposed change",
+        description: "Rewrite the scheduler to prefer cooperative yields.",
+        command: "rewrite scheduler",
+        proposalHash: "hash-1",
+        sessionId: "session-1",
+        allowedDecisions: ["allow-once", "deny"] as const,
+      },
+    };
+
+    const view = buildPendingApprovalView(request);
+
+    expect(view).toMatchObject({
+      approvalKind: "system-agent",
+      operationSummary: "Rewrite the scheduler to prefer cooperative yields.",
+    });
+    expect(view.actions.map((action) => action.action)).toEqual([
+      approvalAction("system-change-1", "system-agent", "allow-once"),
+      approvalAction("system-change-1", "system-agent", "deny"),
+    ]);
+  });
+
+  it.each([
+    { request: { ...approvalRequestBase, request: { command: "echo safe" } }, metadata: [] },
     {
-      title: "Apply proposed change",
-      description,
-      command: "rewrite scheduler",
-      proposalHash: "hash-1",
-      sessionId: "session-1",
-      allowedDecisions: ["allow-once", "deny"],
+      request: {
+        ...approvalRequestBase,
+        request: { title: "Use protected tool", description: "The plugin needs consent." },
+      },
+      metadata: [{ label: "Severity", value: "Warning" }],
     },
-    "system-change-1",
-  );
-  expect(view).toMatchObject({ approvalKind: "system-agent", operationSummary: description });
-  expect(view.actions.map((descriptor) => descriptor.action)).toEqual([
-    action("system-change-1", "system-agent", "allow-once"),
-    action("system-change-1", "system-agent", "deny"),
-  ]);
-});
+  ])("preserves existing metadata when no approval scope is declared", ({ request, metadata }) => {
+    const view = buildPendingApprovalView(request);
 
-it.each([
-  [{ command: "echo safe" }, []],
-  [plugin, [{ label: "Severity", value: "Warning" }]],
-] as const)("preserves metadata without scope: %j", (request, metadata) => {
-  const view = pending(request);
-  expect(view.metadata).toEqual(metadata);
-  expect(view).not.toHaveProperty("scope");
-});
+    expect(view.metadata).toEqual(metadata);
+    expect(view).not.toHaveProperty("scope");
+  });
 
-it.each([{}, { command: "echo hi", title: "Ambiguous", description: "Ambiguous" }])(
-  "rejects payloads without exactly one owner: %j",
-  (request) => {
-    expect(() => resolveApprovalRequestKind({ request })).toThrow("exactly one owner");
-  },
-);
+  it.each([
+    { request: {} },
+    { request: { command: "echo hi", title: "Ambiguous", description: "Ambiguous" } },
+  ])("rejects a request payload without exactly one owner: %j", (request) => {
+    expect(() => resolveApprovalRequestKind(request)).toThrow("exactly one owner");
+  });
+});

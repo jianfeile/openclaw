@@ -45,7 +45,7 @@ function metadata(database: Parameters<typeof ensureArchives>[0]) {
   };
 }
 
-afterEach(closeDatabases);
+afterEach(() => closeDatabases());
 
 it("keeps a current database table-free until first archive use without changing its version", () => {
   const { options, before } = withMissingArchiveTable();
