@@ -1,23 +1,40 @@
 import { describe, expect, it } from "vitest";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
+import type { PluginInstallRecord } from "../config/types.plugins.js";
 import { removePluginFromConfig } from "./uninstall-config.js";
 import { planPluginUninstall } from "./uninstall.js";
 import { disablePluginAfterUpdateFailure, migratePluginConfigId } from "./update-config.js";
 
 describe("context-engine uninstall ownership", () => {
-  const config = (): OpenClawConfig => ({
+  const install = (
+    contextEngineIdsByPlugin: Record<string, string[]>,
+    sourcePath?: string,
+  ): PluginInstallRecord => ({
+    source: "path",
+    sourcePath,
+    contextEngineIdsByPlugin,
+  });
+  const config = (overrides: OpenClawConfig["plugins"] = {}): OpenClawConfig => ({
     plugins: {
       slots: { contextEngine: "canonical-engine", memory: "memory-core" },
       entries: { "vendor-plugin": { enabled: true } },
       installs: {
-        "vendor-plugin": {
-          source: "path",
-          sourcePath: "/missing/vendor-plugin",
-          contextEngineIdsByPlugin: { "vendor-plugin": ["canonical-engine"] },
-        },
+        "vendor-plugin": install(
+          { "vendor-plugin": ["canonical-engine"] },
+          "/missing/vendor-plugin",
+        ),
       },
+      ...overrides,
     },
   });
+  const uninstall = (input: OpenClawConfig, pluginId: string) => {
+    const result = planPluginUninstall({ config: input, pluginId, deleteFiles: false });
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+    return result;
+  };
 
   it("clears a missing plugin's selected engine without reading its files", () => {
     const result = removePluginFromConfig(config(), "vendor-plugin");
@@ -58,61 +75,37 @@ describe("context-engine uninstall ownership", () => {
 
   it("does not clear an ambiguously claimed engine", () => {
     const input = config();
-    input.plugins!.installs!.other = {
-      source: "path",
-      contextEngineIdsByPlugin: { other: ["canonical-engine"] },
-    };
+    input.plugins!.installs!.other = install({ other: ["canonical-engine"] });
     expect(removePluginFromConfig(input, "vendor-plugin").actions.contextEngineSlot).toBe(false);
   });
 
   it("uses retained runtime-child ownership when the package inventory is missing", () => {
-    const input = config();
-    const record = input.plugins!.installs!["vendor-plugin"];
-    if (!record) {
-      throw new Error("Missing install fixture");
-    }
-    input.plugins!.installs = { "vendor-package": record };
-    const result = planPluginUninstall({
-      config: input,
-      pluginId: "vendor-package",
-      deleteFiles: false,
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error(result.error);
-    }
+    const result = uninstall(
+      config({
+        installs: {
+          "vendor-package": install(
+            { "vendor-plugin": ["canonical-engine"] },
+            "/missing/vendor-plugin",
+          ),
+        },
+      }),
+      "vendor-package",
+    );
     expect(result.actions.contextEngineSlot).toBe(true);
     expect(result.config.plugins?.slots).toEqual({ memory: "memory-core" });
   });
   it.each([false, true])(
     "excludes all departing children but preserves outside owners: %s",
     (survives) => {
-      const input: OpenClawConfig = {
-        plugins: {
-          entries: { a: { enabled: true }, b: { enabled: false } },
-          slots: { memory: "memory-core", contextEngine: "engine" },
-          installs: {
-            bundle: {
-              source: "path",
-              sourcePath: "/missing/bundle",
-              contextEngineIdsByPlugin: { a: ["engine"], b: ["engine"] },
-            },
-            ...(survives
-              ? {
-                  other: {
-                    source: "path" as const,
-                    contextEngineIdsByPlugin: { other: ["engine"] },
-                  },
-                }
-              : {}),
-          },
+      const input = config({
+        entries: { a: { enabled: true }, b: { enabled: false } },
+        slots: { memory: "memory-core", contextEngine: "engine" },
+        installs: {
+          bundle: install({ a: ["engine"], b: ["engine"] }, "/missing/bundle"),
+          ...(survives ? { other: install({ other: ["engine"] }) } : {}),
         },
-      };
-      const result = planPluginUninstall({ config: input, pluginId: "bundle", deleteFiles: false });
-      expect(result.ok).toBe(true);
-      if (!result.ok) {
-        throw new Error(result.error);
-      }
+      });
+      const result = uninstall(input, "bundle");
       expect(result.config.plugins?.installs?.bundle).toBeUndefined();
       expect(result.config.plugins?.slots?.contextEngine).toBe(survives ? "engine" : undefined);
       expect(result.config.plugins?.slots?.memory).toBe("memory-core");
