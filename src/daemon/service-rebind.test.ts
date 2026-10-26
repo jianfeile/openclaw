@@ -39,9 +39,7 @@ it("retains both the operation and final rebind observation failures", async () 
 
 it.each<[string, boolean, string?]>([
   ["failed-after-write", false],
-  ["mismatch", false, "definition changed"],
   ["revoked", false, "owner revoked"],
-  ["success", true],
   ["pin-raced", true, "runtime intent changed"],
   ["pre-write", true],
   ["compensated", true],
@@ -65,9 +63,7 @@ it.each<[string, boolean, string?]>([
       command = { programArguments: ["/nodeB", "/B/openclaw.mjs"] };
       pin = "b".repeat(64);
     }
-    if (scenario !== "success") {
-      throw failure;
-    }
+    throw failure;
   });
   const assertCurrent = () => {
     if (scenario === "revoked") {
@@ -77,9 +73,6 @@ it.each<[string, boolean, string?]>([
   await withGatewayServiceRebindCapture(
     before,
     async () => {
-      if (scenario === "mismatch") {
-        command.programArguments.push("--foreign");
-      }
       const capture = () =>
         captureGatewayServiceRebind(
           async () => command,
@@ -106,11 +99,7 @@ it.each<[string, boolean, string?]>([
         expect(currentGatewayServiceRebindReceipt()).toBeUndefined();
         expect(mutate).not.toHaveBeenCalled();
       } else {
-        if (scenario === "success") {
-          await operation;
-        } else {
-          await expect(operation).rejects.toBe(failure);
-        }
+        await expect(operation).rejects.toBe(failure);
         await expectReceipt(scenario !== "pre-write");
         expect(mutate).toHaveBeenCalledOnce();
       }

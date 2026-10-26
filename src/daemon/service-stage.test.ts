@@ -98,25 +98,19 @@ it.each(["9007199254740992", "-9007199254740992"])(
 );
 
 it.each([
-  { field: "ino", exactId: "9007199254740992", legacyId: 9007199254740992 },
-  { field: "ino", exactId: "-9223372036854775808", legacyId: 9223372036854775808 },
-  { field: "dev", exactId: "-9223372036854775808", legacyId: 9223372036854775808 },
+  ["ino", "9007199254740992", 9007199254740992],
+  ["ino", "-9223372036854775808", 9223372036854775808],
+  ["dev", "-9223372036854775808", 9223372036854775808],
 ] as const)(
-  "distinguishes rounded legacy from exact $field=$exactId receipts",
-  ({ field, exactId, legacyId }) => {
-    const state = {
-      ...fileState,
-      dev: "7",
-      ino: "42",
-      [field]: exactId,
-    };
+  "distinguishes rounded legacy from exact %s=%s receipts",
+  (field, exactId, legacyId) => {
+    const state = { ...fileState, dev: "7", ino: "42", [field]: exactId };
     const legacy = readReceipt({ ...fileState, [field]: legacyId });
     expect(legacy[field]).toBe(legacyId);
     expect(matchesPublication(state, legacy)).toBe(true);
     expect(matchesPublication({ ...state, [field]: legacyId }, legacy)).toBe(true);
     expect(matchesPublication(state, state)).toBe(true);
-    const replacedId = BigInt(exactId) + 1n;
-    const replaced = { ...state, [field]: replacedId.toString() };
+    const replaced = { ...state, [field]: (BigInt(exactId) + 1n).toString() };
     expect([matchesPublication(replaced, legacy), matchesPublication(replaced, state)]).toEqual([
       true,
       false,

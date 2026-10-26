@@ -9,22 +9,12 @@ import type { GatewayServiceCommandConfig } from "./service-types.js";
 
 const saved = { OPENCLAW_PROFILE: "saved" };
 const executable = "openclaw.exe|gateway";
+const node = "node.exe|--import|bootstrap.mjs|openclaw.mjs";
+type Environment = GatewayServiceCommandConfig["environment"];
 const profileCases: Array<
-  [
-    name: string,
-    argv: string,
-    environment?: GatewayServiceCommandConfig["environment"],
-    profile?: string,
-    source?: "argv" | "environment" | "default",
-  ]
+  [string, string, Environment?, string?, ("argv" | "environment" | "default")?]
 > = [
-  [
-    "Node runtime options",
-    "node.exe|--import|bootstrap.mjs|openclaw.mjs|--profile=ops|gateway",
-    saved,
-    "ops",
-    "argv",
-  ],
+  ["Node runtime options", `${node}|--profile=ops|gateway`, saved, "ops", "argv"],
   ["root dev", "openclaw.exe|--dev|gateway", saved, "dev", "argv"],
   [
     "gateway-local dev",
@@ -79,14 +69,13 @@ it.each([
   ({ platform, lowercase, direct }) => {
     withMockedPlatform(platform, () => {
       const home = path.resolve("service-profile-fixture");
-      const identity: Record<string, string> = direct
-        ? {}
-        : {
-            OPENCLAW_LAUNCHD_LABEL: "caller-agent",
-            OPENCLAW_SYSTEMD_UNIT: "caller-unit.service",
-            DBUS_SESSION_BUS_ADDRESS: "unix:path=/caller-bus",
-            USER: "caller",
-          };
+      const serviceIdentity = {
+        OPENCLAW_LAUNCHD_LABEL: "caller-agent",
+        OPENCLAW_SYSTEMD_UNIT: "caller-unit.service",
+        DBUS_SESSION_BUS_ADDRESS: "unix:path=/caller-bus",
+        USER: "caller",
+      };
+      const identity = direct ? {} : serviceIdentity;
       const caller = {
         HOME: home,
         OPENCLAW_WINDOWS_TASK_NAME: "Services\\Selected",
@@ -95,8 +84,7 @@ it.each([
       const command: GatewayServiceCommandConfig = direct
         ? { programArguments: ["openclaw.exe", "--profile=rescue", "gateway"] }
         : {
-            programArguments:
-              "node.exe|--import|bootstrap.mjs|openclaw.mjs|--profile|rescue|gateway".split("|"),
+            programArguments: `${node}|--profile|rescue|gateway`.split("|"),
             environment: {
               OPENCLAW_PROFILE: "saved",
               OPENCLAW_STATE_DIR: path.join(home, ".openclaw-saved"),
