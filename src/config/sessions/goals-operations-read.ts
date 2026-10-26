@@ -1,7 +1,7 @@
 import path from "node:path";
 import { captureOpenClawStateWorkerContext } from "../../state/openclaw-state-worker-context.js";
 import { assertSessionGoalOperationTime } from "./goals-operation-policy.js";
-import { SessionGoalOperationError } from "./goals-operations.js";
+import { SessionGoalOperationError } from "./goals-operations.types.js";
 import type {
   SessionGoalOperationLookup,
   SessionGoalOperationResult,

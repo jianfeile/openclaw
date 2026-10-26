@@ -459,6 +459,26 @@ it("resolves runtime aliases and import/require conditions without following dec
 
 it.each([
   {
+    name: "native session worker transactions",
+    dynamic: false,
+    entrypoints: [
+      "src/config/sessions/session-actor.worker.ts",
+      "src/config/sessions/session-turn.worker.ts",
+      "src/config/sessions/goals-operations.worker.ts",
+      "src/agents/sessions/session-manager-metadata.worker.ts",
+      "src/agents/sessions/session-manager-maintenance.worker.ts",
+    ],
+    deferredOwners: [
+      "src/config/sessions/session-actor-memory.ts",
+      "src/config/sessions/session-actor-memory-owner.ts",
+      "src/config/sessions/session-actor-storage-acquisition.ts",
+      "src/config/sessions/goals-operations.ts",
+      "src/agents/sessions/session-manager-reload.ts",
+      "src/config/sessions/session-accessor.sqlite-transcript-write.ts",
+      "src/config/io.runtime.ts",
+    ],
+  },
+  {
     name: "combined session store topology reads",
     dynamic: false,
     entrypoints: ["src/config/sessions/combined-store-topology.worker.ts"],

@@ -50,12 +50,12 @@ export {
 export {
   appendTranscriptEvent,
   appendTranscriptMessage,
-  appendTranscriptMessageSync,
   replaceTranscriptSuffixEventsSync,
   rewriteTranscriptEventRowsExact,
   withTranscriptWriteLock,
   withTranscriptWriteSequence,
 } from "./session-accessor.sqlite-transcript-write.js";
+export { appendTranscriptMessageSync } from "./session-accessor.sqlite-transcript-write.kernel.js";
 
 export { emitSessionTranscriptUpdate as emitTranscriptUpdate } from "../../sessions/transcript-events.js";
 

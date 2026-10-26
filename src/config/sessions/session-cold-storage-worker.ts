@@ -22,7 +22,7 @@ import {
   runOpenClawAgentWriteTransaction,
   type OpenClawAgentDatabase,
 } from "../../state/openclaw-agent-db.js";
-import { readSessionGoalOperationInDatabase } from "./goals-operations.js";
+import { readSessionGoalOperationInDatabase } from "./goals-operation-receipts.js";
 import { publishEncodedSessionTranscriptArchive } from "./session-accessor.sqlite-archive-artifact.js";
 import {
   readSessionStateDeleteSnapshot,

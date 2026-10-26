@@ -15,7 +15,7 @@ import {
 import {
   readSessionGoalOperationInDatabase,
   readSessionGoalOperationReceipt,
-} from "./goals-operations.js";
+} from "./goals-operation-receipts.js";
 import type {
   SessionTranscriptWriteScope,
   SessionTranscriptTurnWriteContext,
@@ -52,7 +52,7 @@ import {
   normalizeTranscriptMessagePreparation,
 } from "./session-transcript-preparation.js";
 import {
-  prepareSessionTurnPredicates,
+  prepareSessionTurnRoutingDependencies,
   prepareSessionTurnRouting,
 } from "./session-turn-predicate.js";
 import { appendSessionTurnInWorker } from "./session-turn.js";
@@ -227,9 +227,7 @@ async function appendPreparedSessionTranscriptTurn(
     },
   };
   options.assertCurrent?.();
-  if (options.acceptedResultGuard || options.sessionTurnMutation?.routingPredicate) {
-    await prepareSessionTurnPredicates();
-  }
+  await prepareSessionTurnRoutingDependencies(options.sessionTurnMutation?.routingPredicate);
   // Released durable callbacks and maintenance retain their native transaction contract.
   const { readEntry, resolveExpectedEntry } = createSessionTranscriptTurnKernel(resolved, options);
   const { restoreSessionColdTranscript } = await import("./session-cold-storage.js");
