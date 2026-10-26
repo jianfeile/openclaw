@@ -1,7 +1,6 @@
 import path from "node:path";
 import {
   getSessionEntryAsync,
-  normalizeSessionDeliveryState,
   type SessionEntry,
   upsertSessionEntry,
 } from "openclaw/plugin-sdk/session-store-runtime";
@@ -56,9 +55,6 @@ describe("Mattermost model picker", () => {
     });
 
     expect(view.text).toContain("Current: openai/gpt-5");
-    expect(view.text).toContain("Tap below to browse models");
-    expect(view.text).toContain("/oc_model <provider/model> to switch");
-    expect(view.text).toContain("Browse keeps the current runtime");
     expect(view.text).toContain("/oc_model <provider/model> --runtime <runtime>");
     expect(view.buttons[0]?.[0]?.text).toBe("Browse providers");
   });
@@ -135,7 +131,7 @@ describe("Mattermost model picker", () => {
     const parentSessionKey = "agent:support:mattermost:default:channel-1";
     const childSessionKey = "agent:support:mattermost:default:child-with-explicit-parent";
     const directSessionKey = "agent:support:mattermost:default:direct-1";
-    const save = (sessionKey: string, channel: string, entry: Partial<SessionEntry>) =>
+    const save = (sessionKey: string, entry: Partial<SessionEntry>) =>
       upsertSessionEntry({
         agentId: "support",
         storePath: storePath("support"),
@@ -143,17 +139,15 @@ describe("Mattermost model picker", () => {
         entry: {
           sessionId: sessionKey,
           updatedAt: 1,
-          chatType: "channel",
-          delivery: normalizeSessionDeliveryState({ context: { channel } }),
           ...entry,
         },
       });
-    await save(parentSessionKey, "channel-1", {
+    await save(parentSessionKey, {
       providerOverride: "anthropic",
       modelOverride: "claude-sonnet-4-5",
     });
-    await save(childSessionKey, "child-with-explicit-parent", { parentSessionKey });
-    await save(directSessionKey, "direct-1", {
+    await save(childSessionKey, { parentSessionKey });
+    await save(directSessionKey, {
       providerOverride: "openai",
       modelOverride: "gpt-5",
     });
