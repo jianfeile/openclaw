@@ -32,13 +32,11 @@ const data = {
     ["openai", new Set(["gpt-4.1", "gpt-5"])],
   ]),
   providers: ["anthropic", "openai"],
-  resolvedDefault: {
-    provider: "anthropic",
-    model: "claude-opus-4-5",
-  },
+  resolvedDefault: { provider: "anthropic", model: "claude-opus-4-5" },
   modelNames: new Map<string, string>(),
   modelCatalog: [],
 };
+const viewParams = { ownerUserId: "user-1", data, currentModel: "openai/gpt-5" };
 
 describe("Mattermost model picker", () => {
   it("resolves bare /model and /models entry points", () => {
@@ -66,26 +64,20 @@ describe("Mattermost model picker", () => {
   });
 
   it("renders providers and models with Telegram-style navigation", () => {
-    const providersView = renderMattermostProviderPickerView({
-      ownerUserId: "user-1",
-      data,
-      currentModel: "openai/gpt-5",
-    });
+    const providersView = renderMattermostProviderPickerView(viewParams);
     const providerTexts = providersView.buttons.flat().map((button) => button.text);
     expect(providerTexts).toContain("anthropic (2)");
     expect(providerTexts).toContain("openai (2)");
 
     const modelsView = renderMattermostModelsPickerView({
-      ownerUserId: "user-1",
-      data,
+      ...viewParams,
       provider: "openai",
       page: 1,
-      currentModel: "openai/gpt-5",
     });
-    const modelTexts = modelsView.buttons.flat().map((button) => button.text);
     expect(modelsView.text).toContain("Models (openai) - 2 available");
-    expect(modelTexts).toContain("gpt-5 [current]");
-    expect(modelTexts).toContain("Back to providers");
+    expect(modelsView.buttons.flat().map((button) => button.text)).toEqual(
+      expect.arrayContaining(["gpt-5 [current]", "Back to providers"]),
+    );
     const ids = modelsView.buttons.flat().map((button) => button.id);
     expect(ids.every((id) => typeof id === "string" && /^[a-z0-9]+$/.test(id))).toBe(true);
     expect(new Set(ids).size).toBe(ids.length);
@@ -138,15 +130,15 @@ describe("Mattermost model picker", () => {
 
   it("resolves current and parent model overrides from targeted session entries", async () => {
     const testDir = tempDirs.make("case-", sessionRoot);
-    const storePath = path.join(testDir, "agents", "{agentId}", "sessions", "sessions.json");
-    const supportStorePath = path.join(testDir, "agents", "support", "sessions", "sessions.json");
+    const storePath = (agentId: string) =>
+      path.join(testDir, "agents", agentId, "sessions", "sessions.json");
     const parentSessionKey = "agent:support:mattermost:default:channel-1";
     const childSessionKey = "agent:support:mattermost:default:child-with-explicit-parent";
     const directSessionKey = "agent:support:mattermost:default:direct-1";
     const save = (sessionKey: string, channel: string, entry: Partial<SessionEntry>) =>
       upsertSessionEntry({
         agentId: "support",
-        storePath: supportStorePath,
+        storePath: storePath("support"),
         sessionKey,
         entry: {
           sessionId: sessionKey,
@@ -167,13 +159,13 @@ describe("Mattermost model picker", () => {
     });
     const currentModel = async (sessionKey: string, loadEntry = true) =>
       resolveMattermostModelPickerCurrentModel({
-        cfg: { session: { store: storePath } },
+        cfg: { session: { store: storePath("{agentId}") } },
         route: { agentId: "support", sessionKey },
         data,
         sessionEntry: loadEntry
           ? await getSessionEntryAsync({
               agentId: "support",
-              storePath: supportStorePath,
+              storePath: storePath("support"),
               sessionKey,
             })
           : undefined,

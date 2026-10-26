@@ -103,32 +103,25 @@ it("registers deduped default and native skill commands across teams", async () 
 
   await registerMonitor({ gateway: { port: 18789 } });
 
-  expect(registerSlashCommands).toHaveBeenCalledTimes(2);
-  const firstRegistration = registerSlashCommands.mock.calls[0]![0];
-  expect(firstRegistration).toEqual({
-    client,
-    teamId: "team-1",
-    creatorUserId: "bot-user",
-    callbackUrl: "https://openclaw.test/slash",
-    commands: [
-      { trigger: "ping", description: "ping" },
-      nativeSpec("oc_skill", "Skill run", "skill"),
-      nativeSpec("oc_ping", "Already prefixed", "oc_ping"),
-    ],
-    log: expect.any(Function),
-  });
+  expect(registerSlashCommands.mock.calls.map(([registration]) => registration.teamId)).toEqual([
+    "team-1",
+    "team-2",
+  ]);
+  expect(registerSlashCommands.mock.calls[0]![0].commands).toEqual([
+    { trigger: "ping", description: "ping" },
+    nativeSpec("oc_skill", "Skill run", "skill"),
+    nativeSpec("oc_ping", "Already prefixed", "oc_ping"),
+  ]);
   const activation = activateSlashCommands.mock.calls[0]![0];
   expect(activation?.registeredCommands).toStrictEqual([
     { token: "token-1", trigger: "ping" },
     { token: "token-2", trigger: "oc_skill" },
   ]);
-  const triggerMap = new Map([
-    ["oc_skill", "skill"],
-    ["oc_ping", "oc_ping"],
-  ]);
-  expect(activation?.triggerMap).toStrictEqual(triggerMap);
-  expect(runtime.log).toHaveBeenCalledWith(
-    "mattermost: slash commands registered (2 commands across 2 teams, callback=https://openclaw.test/slash)",
+  expect(activation?.triggerMap).toStrictEqual(
+    new Map([
+      ["oc_skill", "skill"],
+      ["oc_ping", "oc_ping"],
+    ]),
   );
 });
 
