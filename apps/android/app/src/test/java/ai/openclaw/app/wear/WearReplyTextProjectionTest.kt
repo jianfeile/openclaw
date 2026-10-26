@@ -104,7 +104,12 @@ class WearReplyTextProjectionTest {
           .jsonArray
       assertEquals(
         listOf("canonical", "stable-entry"),
-        previews.map { it.jsonObject.getValue("entryId").jsonPrimitive.content },
+        previews.map {
+          it.jsonObject
+            .getValue("entryId")
+            .jsonPrimitive
+            .content
+        },
       )
       for (message in previews) {
         val preview = message.jsonObject
