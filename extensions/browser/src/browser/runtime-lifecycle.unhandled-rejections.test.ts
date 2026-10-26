@@ -5,6 +5,8 @@ const relay = vi.hoisted(() => ({
   artifactsAvailable: true,
   dispose: vi.fn(),
 }));
+const handlers = vi.hoisted(() => new Set<(reason: unknown) => boolean>());
+const stopKnownBrowserProfilesMock = vi.hoisted(() => vi.fn(async () => {}));
 
 vi.mock("./extension-relay/gateway-relay-route.js", () => {
   if (!relay.artifactsAvailable) {
@@ -13,29 +15,16 @@ vi.mock("./extension-relay/gateway-relay-route.js", () => {
   return { disposeGatewayExtensionRelay: relay.dispose };
 });
 
-const { getUnhandledRejectionHandlers, registerUnhandledRejectionHandlerMock, resetHandlers } =
-  vi.hoisted(() => {
-    let handlers: Array<(reason: unknown) => boolean> = [];
-    return {
-      getUnhandledRejectionHandlers: () => handlers,
-      registerUnhandledRejectionHandlerMock: vi.fn((handler: (reason: unknown) => boolean) => {
-        handlers.push(handler);
-        return () => {
-          handlers = handlers.filter((candidate) => candidate !== handler);
-        };
-      }),
-      resetHandlers: () => {
-        handlers = [];
-      },
-    };
-  });
-
-const stopKnownBrowserProfilesMock = vi.hoisted(() => vi.fn(async () => {}));
-
 vi.mock("openclaw/plugin-sdk/runtime-env", async (importOriginal) => ({
   ...(await importOriginal<typeof import("openclaw/plugin-sdk/runtime-env")>()),
-  registerUnhandledRejectionHandler: registerUnhandledRejectionHandlerMock,
+  registerUnhandledRejectionHandler: vi.fn((handler: (reason: unknown) => boolean) => {
+    handlers.add(handler);
+    return () => {
+      handlers.delete(handler);
+    };
+  }),
 }));
+const { registerUnhandledRejectionHandler } = await import("openclaw/plugin-sdk/runtime-env");
 
 vi.mock("./server-lifecycle.js", () => ({
   stopKnownBrowserProfiles: stopKnownBrowserProfilesMock,
@@ -52,8 +41,8 @@ const dialogRace = () =>
 
 beforeEach(() => {
   getGatewayExtensionRelayModule.clear();
-  resetHandlers();
-  registerUnhandledRejectionHandlerMock.mockClear();
+  handlers.clear();
+  vi.mocked(registerUnhandledRejectionHandler).mockClear();
   stopKnownBrowserProfilesMock.mockClear();
   relay.dispose.mockClear();
 });
@@ -96,24 +85,24 @@ it.each([
   [new Error("No dialog is showing"), false],
 ] as const)("classifies Playwright rejection %#", async (error, handled) => {
   const state = await start();
-  expect(getUnhandledRejectionHandlers()[0]?.(error)).toBe(handled);
+  expect([...handlers][0]?.(error)).toBe(handled);
   await stop(state);
 });
 
 it("registers during startup and unregisters during shutdown", async () => {
   stopKnownBrowserProfilesMock.mockImplementationOnce(async () => {
-    expect(getUnhandledRejectionHandlers()).toHaveLength(1);
+    expect(handlers.size).toBe(1);
   });
   const state = await start();
 
-  expect(registerUnhandledRejectionHandlerMock).toHaveBeenCalledTimes(1);
-  expect(getUnhandledRejectionHandlers()).toHaveLength(1);
-  expect(getUnhandledRejectionHandlers()[0]?.(dialogRace())).toBe(true);
+  expect(registerUnhandledRejectionHandler).toHaveBeenCalledTimes(1);
+  expect(handlers.size).toBe(1);
+  expect([...handlers][0]?.(dialogRace())).toBe(true);
 
   const clearState = vi.fn();
   await stop(state, clearState);
 
   expect(stopKnownBrowserProfilesMock).toHaveBeenCalledTimes(1);
   expect(clearState).toHaveBeenCalledTimes(1);
-  expect(getUnhandledRejectionHandlers()).toStrictEqual([]);
+  expect([...handlers]).toStrictEqual([]);
 });

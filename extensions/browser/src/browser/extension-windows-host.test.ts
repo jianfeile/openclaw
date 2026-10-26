@@ -26,10 +26,7 @@ function setup() {
   };
   const validate = () =>
     host.validateWindowsNativeContext(
-      {
-        ...f.installation,
-        expectedOrigins: [WINDOWS_OFFICIAL_ORIGIN],
-      },
+      { ...f.installation, expectedOrigins: [WINDOWS_OFFICIAL_ORIGIN] },
       deps,
     );
   return { ...f, manage, deps, validate };
@@ -98,11 +95,7 @@ it.each<[string, (f: ReturnType<typeof setup>) => unknown]>([
   ["hash", (f) => f.files.set(f.installation.bindingPath, Buffer.from("{}"))],
   [
     "foreign-sid",
-    (f) =>
-      f.ops.identity.mockResolvedValue({
-        ...f.identity,
-        sid: "S-1-5-21-111-222-333-1002",
-      }),
+    (f) => f.ops.identity.mockResolvedValue({ ...f.identity, sid: "S-1-5-21-111-222-333-1002" }),
   ],
   ["extra-file", (f) => f.ops.listFiles.mockResolvedValue(["foreign"])],
   [
@@ -123,11 +116,7 @@ it.each<[string, (f: ReturnType<typeof setup>) => unknown]>([
   [
     "state-root",
     (f) => {
-      f.installation.manifestPath =
-        f.context.stateDir +
-        "\\browser\\native-messaging\\windows\\" +
-        f.installation.generation +
-        "\\ai.openclaw.browser_bootstrap.json";
+      f.installation.manifestPath = `${f.context.stateDir}\\browser\\native-messaging\\windows\\${f.installation.generation}\\ai.openclaw.browser_bootstrap.json`;
     },
   ],
 ])("rejects %s before credential work", async (_kind, corrupt) => {
