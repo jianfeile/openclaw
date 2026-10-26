@@ -2,6 +2,7 @@ import type {
   SessionContext as CoreSessionContext,
   SessionTreeEntry,
 } from "../../../packages/agent-core/src/harness/types.js";
+import type { SessionMentionInvitation } from "../../config/sessions/session-mention-invitation.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 
 export interface SessionHeader {
@@ -96,6 +97,7 @@ export type SessionEntry =
 export type FileEntry = SessionHeader | SessionEntry;
 
 export type AppendPersistenceOptions = {
+  mentionInvitation?: SessionMentionInvitation;
   appendIntent?: "active-branch";
   /** Synchronous fresh SQLite message assertion; never serialized into an entry. */
   beforeFreshMessageCommit?: () => void;

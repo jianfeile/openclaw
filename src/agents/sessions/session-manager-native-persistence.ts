@@ -264,6 +264,7 @@ export class SessionManagerNativePersistence extends SessionManagerCore {
     }
     const appendOptions = {
       cwd: this.cwd,
+      mentionInvitation: options?.mentionInvitation,
       eventId: entry.id,
       ...(options?.beforeFreshMessageCommit
         ? { beforeFreshMessageCommit: options.beforeFreshMessageCommit }

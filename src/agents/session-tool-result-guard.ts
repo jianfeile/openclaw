@@ -207,17 +207,21 @@ export function installSessionToolResultGuard(
       options?: AppendMessageOptions,
     ) => T,
   ): T =>
-    withRuntimeUserTurnTranscriptRecorder(request.message, (beforeFreshMessageCommit) => {
-      const appendOptions =
-        opts?.config || beforeFreshMessageCommit
-          ? {
-              ...request.options,
-              ...(opts?.config ? { config: opts.config } : {}),
-              ...(beforeFreshMessageCommit ? { beforeFreshMessageCommit } : {}),
-            }
-          : request.options;
-      return append(request.message as never, appendOptions);
-    });
+    withRuntimeUserTurnTranscriptRecorder(
+      request.message,
+      (beforeFreshMessageCommit, mentionInvitation) => {
+        const appendOptions =
+          opts?.config || beforeFreshMessageCommit
+            ? {
+                ...request.options,
+                ...(opts?.config ? { config: opts.config } : {}),
+                ...(beforeFreshMessageCommit ? { beforeFreshMessageCommit } : {}),
+                ...(mentionInvitation ? { mentionInvitation } : {}),
+              }
+            : request.options;
+        return append(request.message as never, appendOptions);
+      },
+    );
   const runSync = <T>(operation: Generator<AppendRequest, T, AppendReceipt>): T => {
     let next = operation.next();
     while (!next.done) {

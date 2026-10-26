@@ -134,6 +134,7 @@ export class SessionManagerAppend extends SessionManagerSuffixPersistence {
                     canonical.message.role === "toolResult" ||
                     readNestedToolActivity(canonical.message) !== undefined),
                 idempotencyLookup: options?.idempotencyLookup,
+                mentionInvitation: options?.mentionInvitation,
               }
             : undefined;
         if (canonical.type === "message" && message) {

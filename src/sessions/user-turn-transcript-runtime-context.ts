@@ -1,6 +1,8 @@
 // Transient user-turn transcript context carried through runtime queues.
 import type { AgentMessage } from "../../packages/agent-core/src/types.js";
 import { createMessageInjectionAuthority } from "../auto-reply/reply/message-injection-authority.js";
+import type { SessionMentionInvitation } from "../config/sessions/session-mention-invitation.js";
+import { prepareUserTurnMentionInvitation } from "./user-turn-transcript-admission.js";
 import type {
   PersistedUserTurnMessage,
   UserTurnTranscriptRecorder,
@@ -105,25 +107,37 @@ function readRuntimeUserTurnTranscriptRecorder(
 /** A steered message retains its own live custody while another turn owns the runtime. */
 export function withRuntimeUserTurnTranscriptRecorder<T>(
   runtimeMessage: AgentMessage,
-  append: (beforeFreshMessageCommit?: () => void) => T,
+  append: (
+    beforeFreshMessageCommit?: () => void,
+    mentionInvitation?: SessionMentionInvitation,
+  ) => T,
 ): T {
   const recorder = readRuntimeUserTurnTranscriptRecorder(runtimeMessage);
   const assertCommit = recorder?.assertOriginalInputCommit;
+  const preparedInvitation =
+    runtimeMessage.role === "user"
+      ? prepareUserTurnMentionInvitation(recorder, runtimeMessage)
+      : undefined;
   // Capture before SessionManager canonicalizes the message and drops its symbols.
   // Only the fresh SQL append invokes this assertion; replay keeps its recorded result.
-  const beforeFreshMessageCommit = assertCommit
-    ? createMessageInjectionAuthority(() => {
-        assertCommit();
-        return true;
-      })
-    : undefined;
-  const persist = () => append(beforeFreshMessageCommit);
+  const beforeFreshMessageCommit =
+    assertCommit || preparedInvitation
+      ? createMessageInjectionAuthority(() => {
+          assertCommit?.();
+          preparedInvitation?.assertCurrent();
+          return true;
+        })
+      : undefined;
+  const persist = () => append(beforeFreshMessageCommit, preparedInvitation?.invitation);
   return recorder?.withPendingInput ? recorder.withPendingInput(persist) : persist();
 }
 
 export async function withCurrentRuntimeUserTurnTranscriptRecorder<T>(
   runtimeMessage: AgentMessage,
-  append: (beforeFreshMessageCommit?: () => void) => T,
+  append: (
+    beforeFreshMessageCommit?: () => void,
+    mentionInvitation?: SessionMentionInvitation,
+  ) => T,
 ): Promise<Awaited<T>> {
   const recorder = readRuntimeUserTurnTranscriptRecorder(runtimeMessage);
   return await withCurrentUserTurnInput(recorder, () =>

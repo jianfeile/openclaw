@@ -195,6 +195,7 @@ export class SessionManagerPersistence extends SessionManagerNativePersistence {
           cwd: message.cwd,
           validateTurn: message.validateTurn,
           idempotencyLookup: message.idempotencyLookup,
+          mentionInvitation: message.mentionInvitation,
         }
       : undefined;
     const projectAppend = (
@@ -599,6 +600,7 @@ export class SessionManagerPersistence extends SessionManagerNativePersistence {
                 cwd: this.cwd,
                 validateTurn: false,
                 idempotencyLookup: options?.idempotencyLookup,
+                mentionInvitation: options?.mentionInvitation,
               }
             : undefined;
         const committed = await this.persistWorkerRecord(
