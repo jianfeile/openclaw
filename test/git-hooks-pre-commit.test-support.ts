@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, type SpawnSyncReturns } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { makeTempDir as makeTempRepoRoot } from "./helpers/temp-dir.js";
@@ -46,11 +46,8 @@ export const runFailure = (...args: Parameters<typeof run>) => {
     if (!(error instanceof Error) || !("status" in error)) {
       throw error;
     }
-    const failure = error as Error & {
-      status?: number;
-      stderr?: string;
-      stdout?: string;
-    };
+    const failure = error as Error &
+      Partial<Pick<SpawnSyncReturns<string>, "status" | "stderr" | "stdout">>;
     return {
       status: failure.status ?? 1,
       stderr: failure.stderr ?? "",
