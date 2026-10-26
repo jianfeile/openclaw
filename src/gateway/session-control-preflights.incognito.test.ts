@@ -3,7 +3,6 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from "vite
 import { useAutoCleanupTempDirTracker } from "../../test/helpers/temp-dir.js";
 import { clearRuntimeConfigSnapshot, setRuntimeConfigSnapshot } from "../config/io.js";
 import { memorySessionActorOwners } from "../config/sessions/session-actor-memory-owner.js";
-import { withSessionActorStorage } from "../config/sessions/session-actor-storage-binding.js";
 import { resolveIncognitoOpenClawAgentSqlitePath } from "../state/openclaw-agent-db.paths.js";
 import { observeMainThreadSql } from "../test-utils/main-thread-sql-spies.test-support.js";
 import { createDirectChatContext } from "./server-chat.agent-events.test-helpers.js";
@@ -16,7 +15,6 @@ import type { SessionActivitySummaryService } from "./session-activity-summaries
 import * as sharing from "./session-sharing.js";
 
 const tempDirs = useAutoCleanupTempDirTracker(afterAll);
-const authority = { assertCurrent() {}, authorize() {} };
 const cfg = { agents: { entries: { main: {}, absent: {} } } };
 const sessionKey = "agent:main:dashboard:incognito-preflight";
 const sessionId = "private-preflight";
@@ -35,18 +33,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-beforeAll(async () => {
+beforeAll(() => {
   env = { OPENCLAW_STATE_DIR: tempDirs.make("incognito-control-preflights-") };
   vi.stubEnv("OPENCLAW_STATE_DIR", env.OPENCLAW_STATE_DIR);
   setRuntimeConfigSnapshot(cfg, cfg);
-  const entry = { sessionId, updatedAt: 1, incognito: true as const };
-  const created = await withSessionActorStorage(
-    { agentId: "main", sessionKey, storePath: location().path, env },
-    { create: true, authority, lifetime: { assertCurrent() {}, assertReadable() {} } },
-    ({ actor }) =>
-      actor.storage.mutate({ type: "session.entry.create", input: { entry } }, authority),
-  );
-  expect(created?.kind).toBe("committed");
 });
 afterAll(() => {
   memorySessionActorOwners.closeDatabase(location());
@@ -99,6 +89,7 @@ it.each([
     expect.objectContaining({ code: "INVALID_REQUEST", message }),
   );
   expect(target).not.toHaveBeenCalled();
+  expect(memorySessionActorOwners.read(location())).toBeUndefined();
   expect(memorySessionActorOwners.read(location("absent"))).toBeUndefined();
   sql.expectIdle();
 });
@@ -124,5 +115,6 @@ it("reports private activity recaps unavailable without acquiring a source or sc
   });
   expect(ensure).not.toHaveBeenCalled();
   expect(target).not.toHaveBeenCalled();
+  expect(memorySessionActorOwners.read(location())).toBeUndefined();
   sql.expectIdle();
 });
