@@ -4,7 +4,6 @@ import { onCleanup } from "solid-js";
 import { afterEach, expect, it, vi } from "vitest";
 import type { GatewaySessionRow } from "../api/types.ts";
 import type { ApplicationContext } from "../app/context.ts";
-import { createGatewayHarness } from "../app/overlays-access.test-support.ts";
 import { createIdentityAvatars } from "../lib/identity-avatar-loader.ts";
 import { projectOwner } from "../lib/reactive/projection.ts";
 import { showToast } from "../lib/toast.ts";
@@ -58,7 +57,11 @@ it("reports a failed table dialog import and releases the open reservation", asy
   const trigger = owner.querySelector<HTMLButtonElement>(".markdown-table__expand")!;
   trigger.click();
   await waitForSolid(() => expect(showToast).toHaveBeenCalledOnce());
-  expect(showToast).toHaveBeenLastCalledWith(expect.objectContaining({ severity: "error" }));
+  expect(showToast).toHaveBeenLastCalledWith({
+    message:
+      "Panel failed to load. Some interface files could not be downloaded. Check your connection, then reload.",
+    severity: "error",
+  });
   expect(owner.querySelector("openclaw-modal-dialog")).toBeNull();
   trigger.click();
   await waitForSolid(() => expect(showToast).toHaveBeenCalledTimes(2));
@@ -92,10 +95,12 @@ it("reports an agent creation import failure after closing the picker", async ()
   expect(vi.mocked(showToast).mock.calls[0]?.[0].message).toContain(
     "Agent creation module unavailable. Try again.",
   );
+  view.unmount();
 });
 
 it("reports a placement picker import failure through the menu's error owner without issuing a move", async () => {
   const request = vi.fn(async () => ({}));
+  const client = createTestGatewayClient(request);
   const row: GatewaySessionRow = {
     key: "agent:main:scout",
     sessionId: "scout",
@@ -105,12 +110,17 @@ it("reports a placement picker import failure through the menu's error owner wit
     worktree: { id: "scout", branch: "scout", repoRoot: "/synthetic/scout" },
   };
   const publishError = vi.fn();
-  const { gateway, update } = createGatewayHarness(createTestGatewayClient(request));
-  update({ hello: gatewayHelloForMethods(["sessions.move", "sessions.dispatch"]) });
   const reconcileMutation = vi.fn();
-  // SAFETY: The placement entry reads only these capabilities before choosing a target.
+  // SAFETY: The placement entry uses only these owner capabilities before choosing a target.
   const context = {
-    gateway,
+    gateway: {
+      snapshot: {
+        phase: "connected",
+        client,
+        hello: gatewayHelloForMethods(["sessions.move", "sessions.dispatch"]),
+      },
+      connectionRevision: 1,
+    },
     sessions: { reconcileMutation },
     agents: { state: { agentsList: null } },
   } as unknown as ApplicationContext;
@@ -122,6 +132,7 @@ it("reports a placement picker import failure through the menu's error owner wit
     isCurrent: () => true,
     publishError,
   });
+  expect(publishError).toHaveBeenCalledOnce();
   expect(publishError.mock.calls[0]?.[0]).toMatchObject({
     cause: { message: "Placement picker unavailable. Try again." },
   });

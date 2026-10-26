@@ -44,6 +44,7 @@ describe.runIf("__vitest_browser__" in globalThis)("native modal transient surfa
       openExternal: vi.fn(),
       openInline,
     });
+    expect(menu).not.toBeNull();
     await menu!.updateComplete;
     await page
       .elementLocator(menu!)
@@ -95,9 +96,11 @@ describe.runIf("__vitest_browser__" in globalThis)("native modal transient surfa
     const { dialog } = await modalFixture();
     vi.stubGlobal("navigator", {});
     const exec = vi.spyOn(document, "execCommand").mockImplementation(() => {
-      const selection = document.activeElement as HTMLTextAreaElement;
+      const selection = document.activeElement;
+      expect(selection).toBeInstanceOf(HTMLTextAreaElement);
       expect(dialog.contains(selection)).toBe(true);
-      const { value, selectionStart, selectionEnd } = selection;
+      const textarea = selection as HTMLTextAreaElement;
+      const { value, selectionStart, selectionEnd } = textarea;
       expect(value.slice(selectionStart, selectionEnd)).toBe("Report URL");
       return true;
     });
@@ -105,6 +108,9 @@ describe.runIf("__vitest_browser__" in globalThis)("native modal transient surfa
     expect(exec).toHaveBeenCalledOnce();
     expect(dialog.querySelector("textarea")).toBeNull();
   });
+});
+
+describe.runIf("__vitest_browser__" in globalThis)("native menu clipboard fallback", () => {
   it("keeps the menu open when rejected clipboard writes fall back to selection", async () => {
     const { page } = await import("vitest/browser");
     const copied = vi.fn();

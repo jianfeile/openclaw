@@ -1,23 +1,23 @@
 /* @vitest-environment jsdom */
 import { getQueriesForElement } from "@solidjs/testing-library";
-import { expect, it, onTestFinished, vi } from "vitest";
+import { createMemo, createSignal } from "solid-js";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { createDeferred } from "../../../../test/helpers/promise.ts";
 import { GatewayBrowserClient } from "../../api/gateway.ts";
 import type { DevicePairJoinSetup } from "../../lib/device-pair-setup.ts";
-import { mountSolid } from "../../test-helpers/solid-render.tsx";
-import { waitForSolid } from "../../test-helpers/solid-settle.ts";
+import { mountSolid } from "../../test-helpers/mount-solid.ts";
+import { flush, waitForSolid } from "../../test-helpers/solid-settle.ts";
 import { ConnectMachineDialog } from "./connect-machine-dialog-view.tsx";
 import { ConnectMachineSetupState } from "./connect-machine-dialog.ts";
 
 function code(id: string): DevicePairJoinSetup {
-  const joinUrl = `https://gateway.example.test/j/${id}`;
-  const command = `openclaw connect ${joinUrl}`;
   return {
     setupId: id,
     setupCode: "SYNTHETIC",
-    joinUrl,
-    command: `${command} --session-host`,
-    serviceCommand: command,
-    installedCommand: `${command} --installed`,
+    joinUrl: `https://gateway.example.test/j/${id}`,
+    command: `openclaw connect https://gateway.example.test/j/${id} --session-host`,
+    serviceCommand: `openclaw connect https://gateway.example.test/j/${id}`,
+    installedCommand: `openclaw connect https://gateway.example.test/j/${id} --installed`,
     gatewayUrl: "wss://gateway.example.test",
     auth: "token",
     urlSource: "test",
@@ -31,89 +31,104 @@ function mountSetup() {
     client: new GatewayBrowserClient({ url: "wss://gateway.example.test" }),
     connected: true,
   };
-  const props = () => setup.view(true, () => {});
+  let changed = () => {};
   const setup = new ConnectMachineSetupState(
     () => gateway,
-    () => view.update(props()),
+    () => changed(),
   );
-  const container = document.body.appendChild(document.createElement("div"));
-  const view = mountSolid(ConnectMachineDialog, props(), container);
-  onTestFinished(() => {
-    setup.close();
-    container.remove();
+  const view = mountSolid(() => {
+    const [revision, setRevision] = createSignal(0);
+    changed = () => setRevision((value) => value + 1);
+    const props = createMemo(() => {
+      revision();
+      return setup.view(true, () => {});
+    });
+    return (
+      <>
+        <button onClick={() => setup.start()}>Connect</button>
+        <ConnectMachineDialog {...props()} />
+      </>
+    );
   });
-  const queries = getQueriesForElement(document.body);
-  return {
-    gateway,
-    start: () => setup.start(),
-    ...queries,
-    button: (name: string) => queries.getByRole<HTMLButtonElement>("button", { name }),
-    dialog: () => view.container.querySelector("openclaw-modal-dialog"),
-    command: (id: string) => queries.queryByText(code(id).command),
-    ready: (id: string) =>
-      waitForSolid(() => expect(queries.getByText(code(id).command)).toBeDefined()),
-  };
+  onTestFinished(() => setup.close());
+  flush();
+  // The modal moves its contents to the document's overlay surface.
+  return { gateway, setup, view: { ...view, ...getQueriesForElement(document.body) } };
 }
 
-it("retains the command and dialog through minting, refresh failure and retry", async () => {
-  const f = mountSetup();
-  const initial = Promise.withResolvers<DevicePairJoinSetup>();
-  const request = vi.spyOn(f.gateway.client, "request").mockReturnValueOnce(initial.promise);
-  f.start();
-  await waitForSolid(() =>
-    expect(f.getByRole("status").textContent).toBe("Creating a secure connection link…"),
-  );
-  expect(f.button("Dismiss").disabled).toBe(false);
-  initial.resolve(code("first"));
-  await f.ready("first");
-  const dialog = f.dialog();
-  const refresh = Promise.withResolvers<DevicePairJoinSetup>();
-  request.mockReturnValueOnce(refresh.promise);
-  f.button("Mint fresh code").click();
-  await waitForSolid(() => expect(f.button("Minting…").disabled).toBe(true));
-  expect(f.command("first")).not.toBeNull();
-  expect(f.dialog()).toBe(dialog);
-  refresh.reject(new Error("Connection unavailable"));
-  await waitForSolid(() =>
-    expect(f.getByRole("alert").textContent).toContain("Connection unavailable"),
-  );
-  expect(f.command("first")).not.toBeNull();
-  request.mockResolvedValueOnce(code("replacement"));
-  f.button("Mint fresh code").click();
-  await f.ready("replacement");
-  expect(f.queryByRole("alert")).toBeNull();
-  expect(f.command("first")).toBeNull();
-  expect(f.dialog()).toBe(dialog);
-});
+describe("machine connection presentation", () => {
+  it("opens while minting and retains the command and dialog through refresh failure and retry", async () => {
+    const { gateway, view } = mountSetup();
+    const initial = createDeferred<DevicePairJoinSetup>();
+    const request = vi.spyOn(gateway.client, "request").mockReturnValueOnce(initial.promise);
+    view.getByRole<HTMLButtonElement>("button", { name: "Connect" }).click();
+    await waitForSolid(() =>
+      expect(view.getByRole("status").textContent).toBe("Creating a secure connection link…"),
+    );
+    expect(view.getByRole<HTMLButtonElement>("button", { name: "Dismiss" }).disabled).toBe(false);
+    await waitForSolid(() => expect(request).toHaveBeenCalledOnce());
+    initial.resolve(code("first"));
+    await waitForSolid(() => expect(view.getByText(code("first").command)).toBeDefined());
+    const dialog = view.container.querySelector("openclaw-modal-dialog");
 
-it.each(["resolve", "reject"] as const)(
-  "ignores a dismissed connection's late %s",
-  async (outcome) => {
-    const f = mountSetup();
-    const retired = Promise.withResolvers<DevicePairJoinSetup>();
-    const originalRequest = vi
-      .spyOn(f.gateway.client, "request")
-      .mockReturnValueOnce(retired.promise);
-    f.start();
-    await waitForSolid(() => expect(originalRequest).toHaveBeenCalledOnce());
-    f.button("Dismiss").click();
-    await waitForSolid(() => expect(f.dialog()).toBeNull());
-    f.gateway.client = new GatewayBrowserClient({ url: "wss://replacement.example.test" });
-    const replacement = Promise.withResolvers<DevicePairJoinSetup>();
-    const nextRequest = vi
-      .spyOn(f.gateway.client, "request")
-      .mockReturnValueOnce(replacement.promise);
-    f.start();
-    await waitForSolid(() => expect(nextRequest).toHaveBeenCalledOnce());
-    if (outcome === "resolve") {
-      retired.resolve(code("retired-secret"));
-    } else {
-      retired.reject(new Error("Retired failure"));
-    }
-    replacement.resolve(code("current-secret"));
-    await f.ready("current-secret");
-    expect(f.command("retired-secret")).toBeNull();
-    expect(f.queryByRole("alert")).toBeNull();
-    expect(f.button("Mint fresh code").disabled).toBe(false);
-  },
-);
+    const refresh = createDeferred<DevicePairJoinSetup>();
+    request.mockReturnValueOnce(refresh.promise);
+    view.getByRole<HTMLButtonElement>("button", { name: "Mint fresh code" }).click();
+    await waitForSolid(() =>
+      expect(view.getByRole<HTMLButtonElement>("button", { name: "Minting…" }).disabled).toBe(true),
+    );
+    expect(view.getByText(code("first").command)).toBeDefined();
+    expect(view.container.querySelector("openclaw-modal-dialog")).toBe(dialog);
+    refresh.reject(new Error("Connection unavailable"));
+    await waitForSolid(() =>
+      expect(view.getByRole("alert").textContent).toContain("Connection unavailable"),
+    );
+    expect(view.getByText(code("first").command)).toBeDefined();
+
+    request.mockResolvedValueOnce(code("replacement"));
+    view.getByRole<HTMLButtonElement>("button", { name: "Mint fresh code" }).click();
+    await waitForSolid(() => expect(view.getByText(code("replacement").command)).toBeDefined());
+    expect(view.queryByRole("alert")).toBeNull();
+    expect(view.queryByText(code("first").command)).toBeNull();
+    expect(view.container.querySelector("openclaw-modal-dialog")).toBe(dialog);
+  });
+
+  it.each(["resolve", "reject"] as const)(
+    "releases a dismissed request before a replacement connection, then ignores its late %s",
+    async (outcome) => {
+      const { gateway, view } = mountSetup();
+      const retired = createDeferred<DevicePairJoinSetup>();
+      const originalRequest = vi
+        .spyOn(gateway.client, "request")
+        .mockReturnValueOnce(retired.promise);
+      view.getByRole<HTMLButtonElement>("button", { name: "Connect" }).click();
+      await waitForSolid(() => expect(originalRequest).toHaveBeenCalledOnce());
+      view.getByRole<HTMLButtonElement>("button", { name: "Dismiss" }).click();
+      await waitForSolid(() =>
+        expect(view.container.querySelector("openclaw-modal-dialog")).toBeNull(),
+      );
+
+      gateway.client = new GatewayBrowserClient({ url: "wss://replacement.example.test" });
+      const replacement = createDeferred<DevicePairJoinSetup>();
+      const nextRequest = vi
+        .spyOn(gateway.client, "request")
+        .mockReturnValueOnce(replacement.promise);
+      view.getByRole<HTMLButtonElement>("button", { name: "Connect" }).click();
+      await waitForSolid(() => expect(nextRequest).toHaveBeenCalledOnce());
+      if (outcome === "resolve") {
+        retired.resolve(code("retired-secret"));
+      } else {
+        retired.reject(new Error("Retired failure"));
+      }
+      replacement.resolve(code("current-secret"));
+      await waitForSolid(() =>
+        expect(view.getByText(code("current-secret").command)).toBeDefined(),
+      );
+      expect(view.queryByText(code("retired-secret").command)).toBeNull();
+      expect(view.queryByRole("alert")).toBeNull();
+      expect(
+        view.getByRole<HTMLButtonElement>("button", { name: "Mint fresh code" }).disabled,
+      ).toBe(false);
+    },
+  );
+});

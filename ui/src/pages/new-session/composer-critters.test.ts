@@ -46,6 +46,7 @@ describe("new-session composer critter visits", () => {
     expect(input.value).toBe("Typed before idle");
     expect(input.disabled).toBe(false);
     const pet = await loadPet(composer);
+    expect(pet.floorEnabled).toBe(false);
     expect(composer.querySelector("textarea")).toBe(input);
     unmount();
     const reopened = renderComposer();
@@ -53,14 +54,25 @@ describe("new-session composer critter visits", () => {
     expect(visitor(reopened.composer).seed).not.toBe(pet.seed);
   });
 
-  it("reflects Appearance preferences and branding without changing saved visitor settings", async () => {
+  it("keeps visitor preferences and dismissal refresh connected to Appearance", async () => {
     const context = composerContext({ client: null });
     context.theme.settings.lobsterPetVisits = false;
     context.theme.settings.lobsterPetSounds = true;
     const { composer, rerender } = renderComposer({ context });
     const pet = await loadPet(composer);
-    expect(pet).toMatchObject({ visitsEnabled: false, soundsEnabled: true, residentEnabled: true });
+    expect(pet).toMatchObject({ visitsEnabled: false, soundsEnabled: true });
     context.theme.settings.lobsterPetVisits = true;
+    rerender();
+    expect(pet.visitsEnabled).toBe(true);
+    pet.onVisitsDisabled();
+    expect(context.theme.refresh).toHaveBeenCalledOnce();
+  });
+
+  it("suspends only the resident for a theme without a mascot and passes its visitor catalog", async () => {
+    const context = composerContext({ client: null });
+    const { composer, rerender } = renderComposer({ context });
+    const pet = await loadPet(composer);
+    expect(pet).toMatchObject({ visitsEnabled: true, residentEnabled: true });
     context.theme.branding.mascot = "none";
     context.theme.branding.critters = ["penguin", "fedora"];
     rerender();
@@ -70,8 +82,6 @@ describe("new-session composer critter visits", () => {
       critters: ["penguin", "fedora"],
     });
     expect(context.theme.settings.lobsterPetVisits).toBe(true);
-    pet.onVisitsDisabled();
-    expect(context.theme.refresh).toHaveBeenCalledOnce();
     context.theme.branding.mascot = "claw";
     rerender();
     expect(pet).toMatchObject({ residentEnabled: true, visitsEnabled: true });
@@ -84,20 +94,32 @@ describe("new-session composer critter visits", () => {
     const first = renderComposer();
     document.body.append(first.container);
     onTestFinished(() => first.container.remove());
+    const currentVisitor = () => visitor(first.composer);
     const initial = await loadPet(first.composer);
     const seed = initial.seed;
+    expect(initial.parentElement?.classList.contains("agent-chat__input")).toBe(true);
     expect(initial.floorEnabled).toBe(true);
     first.rerender();
     first.rerenderForAgent("resolved-agent");
-    expect(visitor(first.composer)).toBe(initial);
-    expect(initial.seed).toBe(seed);
+    expect(currentVisitor()).toBe(initial);
+    expect(currentVisitor().seed).toBe(seed);
     const textarea = first.composer.querySelector("textarea")!;
+    const elements = initial.composerElements!()!;
+    expect(elements.composer).toBe(initial.parentElement);
+    expect(elements.editor).toBe(textarea);
+    expect(elements.footer).toBe(first.composer.querySelector(".agent-chat__composer-footer"));
+    expect(elements.controls).toEqual([
+      first.composer.querySelector(".agent-chat__composer-lead"),
+      first.composer.querySelector(".agent-chat__composer-actions"),
+    ]);
     textarea.value = "A prompt takes priority over the visitors";
     textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    expect(visitor(first.composer)).toMatchObject({ seed, floorEnabled: false });
+    expect(currentVisitor()).toMatchObject({ seed, floorEnabled: false });
     first.rerenderForDraftRoute("draft:two", "");
-    expect(visitor(first.composer).seed).not.toBe(seed);
-    expect(visitor(first.composer).floorEnabled).toBe(true);
+    expect(currentVisitor().seed).not.toBe(seed);
+    expect(currentVisitor().floorEnabled).toBe(true);
+    const reopened = renderComposer();
+    expect((await loadPet(reopened.composer)).seed).not.toBe(seed);
   });
 
   it.each([{ dictationActive: true }, { submitting: true }, { messageLocked: true }])(

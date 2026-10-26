@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 import type { GatewayBrowserClient } from "../../api/gateway.ts";
-import type { ApplicationContext } from "../../app/context.ts";
+import type { ApplicationContext, ApplicationGatewaySnapshot } from "../../app/context.ts";
 import type { NewSessionRouteData } from "./location.ts";
 import { newSessionModelSearch } from "./model-location.ts";
 import { page } from "./route.ts";
@@ -29,6 +29,11 @@ function createContext(
     return { catalogs: [] };
   });
   const client = { request } as unknown as GatewayBrowserClient;
+  const snapshot: Pick<ApplicationGatewaySnapshot, "client" | "phase" | "assistantAgentId"> = {
+    client,
+    phase: "connected",
+    assistantAgentId,
+  };
   const ensureList = vi.fn(async () => agentsList);
   const agentsState = {
     client: staleRosterClient ? ({ request: vi.fn() } as unknown as GatewayBrowserClient) : client,
@@ -36,10 +41,18 @@ function createContext(
     agentsList,
   };
   const context = {
-    gateway: { snapshot: { client, phase: "connected", assistantAgentId } },
+    gateway: { snapshot },
     agents: { state: agentsState, ensureList },
   } as unknown as ApplicationContext;
   return { agentsState, client, context, ensureList, request };
+}
+
+function expectCatalog(request: ReturnType<typeof createContext>["request"], agentId: string) {
+  expect(request).toHaveBeenCalledWith("sessions.catalog.list", {
+    agentId,
+    catalogId: "claude",
+    limitPerHost: 1,
+  });
 }
 
 it.each(["current", "failed", "retired-agent"] as const)(
@@ -60,14 +73,12 @@ it.each(["current", "failed", "retired-agent"] as const)(
       context,
       outcome === "retired-agent" ? "?agent=old&catalog=claude" : "?catalog=claude",
     );
+    expect(ensureList).toHaveBeenCalledTimes(outcome === "retired-agent" ? 0 : 1);
     expect(data.agentId).toBe(outcome === "failed" ? "" : "current");
     if (outcome === "failed") {
       expect(request).not.toHaveBeenCalled();
     } else {
-      expect(request).toHaveBeenCalledWith(
-        "sessions.catalog.list",
-        expect.objectContaining({ agentId: "current" }),
-      );
+      expectCatalog(request, "current");
     }
   },
 );
@@ -86,6 +97,12 @@ it.each([
       : `?agent=main&model=${encodeURIComponent(model)}`,
   );
   expect(data.requestedModel).toBe(expected);
+  expect(data).toMatchObject({
+    agentId: "main",
+    requestedAgentId: "main",
+    startTerminal: false,
+    catalogId: "",
+  });
   expect(request).not.toHaveBeenCalled();
 });
 
@@ -120,8 +137,5 @@ it("waits for the replacement client's roster before preserving a valid route ag
   const data = await load(context, "?agent=research&catalog=claude");
 
   expect(data.agentId).toBe("research");
-  expect(request).toHaveBeenCalledWith(
-    "sessions.catalog.list",
-    expect.objectContaining({ agentId: "research" }),
-  );
+  expectCatalog(request, "research");
 });

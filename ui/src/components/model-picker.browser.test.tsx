@@ -68,19 +68,53 @@ it("settles disabled provider groups and allows re-enabling", async () => {
   expect(onChange).toHaveBeenCalledExactlyOnceWith("openai/fixture-beta");
 });
 
-it("commits free-form models on input by default", async () => {
-  const { container, onChange } = await mountPicker({
-    value: "vendor/current",
-    custom: { label: "Custom model…" },
+it("puts a late selection first without truncating a large catalog", async () => {
+  const { container, picker } = await mountPicker({
+    value: "fixture/model-299",
+    options: Array.from({ length: 300 }, (_, index) => ({
+      value: `fixture/model-${String(index).padStart(3, "0")}`,
+      label: `Model ${index}`,
+      provider: "fixture",
+    })),
   });
-  const input = container.querySelector<HTMLInputElement>("input")!;
-  input.value = "vendor/model with spaces";
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  expect(onChange).toHaveBeenCalledExactlyOnceWith("vendor/model with spaces");
+  await openPicker(picker);
+  const rows = [...container.querySelectorAll('[role="option"][data-value]')];
+  expect(rows).toHaveLength(300);
+  expect(rows.slice(0, 3).map((row) => row.getAttribute("data-value"))).toEqual([
+    "fixture/model-299",
+    "fixture/model-000",
+    "fixture/model-001",
+  ]);
 });
 
-it("keeps raw references out of hover tooltips", async () => {
-  const { picker, option } = await mountPicker({
+it("reveals free-form entry without leaking its internal option value", async () => {
+  const { container, picker, onChange } = await mountPicker({
+    custom: { label: "Custom model…", placeholder: "provider/model" },
+  });
+  await openPicker(picker);
+  const custom = [...container.querySelectorAll('[role="option"]')].find(
+    (option) => option.textContent?.trim() === "Custom model…",
+  );
+  const input = container.querySelector<HTMLInputElement>("input")!;
+  expect(custom).toBeDefined();
+  expect(input.hidden).toBe(true);
+  await choosePickerValue(picker, custom!.getAttribute("data-value")!);
+  expect(input.hidden).toBe(false);
+  input.value = "vendor/model with spaces";
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  expect(onChange).toHaveBeenCalledWith("vendor/model with spaces");
+  expect(onChange).not.toHaveBeenCalledWith(custom!.getAttribute("data-value"));
+});
+
+it("preserves an unknown model in the menu", async () => {
+  const { picker, option } = await mountPicker({ value: "legacy/model" });
+  await openPicker(picker);
+  expect(option("legacy/model").textContent).toContain("legacy/model");
+});
+
+it("keeps raw references out of hover tooltips and selects the hovered model", async () => {
+  const { picker, option, onChange } = await mountPicker({
+    showSelectedDetail: true,
     options: [{ value: "", label: "Automatic" }, fixture("Alpha", "API"), fixture("Beta", "API")],
   });
   const dispose = installTitleTooltips(document);
@@ -91,6 +125,9 @@ it("keeps raw references out of hover tooltips", async () => {
     expect(row.textContent).toContain("API");
     row.dispatchEvent(new MouseEvent("pointerover", { bubbles: true, composed: true }));
     expect(document.querySelector("openclaw-tooltip")?.content ?? "").toBe("");
+    row.click();
+    await picker.updateComplete;
+    expect(onChange).toHaveBeenCalledExactlyOnceWith("openai/fixture-beta");
   } finally {
     dispose();
   }
