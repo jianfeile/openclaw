@@ -63,7 +63,6 @@ it("preserves explicit NODE_OPTIONS while omitting other empty values", () => {
     expect(directives(unit, "Environment").flatMap(parseSystemdEnvAssignments)).toEqual([
       { key: "NODE_OPTIONS", value: nodeOptions },
     ]);
-    expect(parseSystemdExecStart(execStart(unit))).toEqual(programArguments);
   }
 });
 

@@ -2,6 +2,7 @@ import { expect, it, vi } from "vitest";
 import { execLaunchctl } from "./launchd-exec.js";
 import { LAUNCH_AGENT_EXIT_TIMEOUT_SECONDS } from "./launchd-plist.js";
 import { bootstrapLaunchAgentOrThrow, probeLaunchAgentState } from "./launchd-runtime.js";
+import { nativeExit } from "./systemd-exec.test-support.js";
 
 vi.mock("./launchd-exec.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./launchd-exec.js")>()),
@@ -9,12 +10,6 @@ vi.mock("./launchd-exec.js", async (importOriginal) => ({
 }));
 
 const target = "gui/501/ai.openclaw.fixture";
-const launchctlResult = (code = 0, stdout = "", stderr = "") => ({
-  code,
-  termination: "exit" as const,
-  stdout,
-  stderr,
-});
 
 const job = (fields: string, name = target) => `${name} = {\n${fields}\n}`;
 const unknownJob = { state: "unknown", detail: expect.any(String) };
@@ -37,7 +32,7 @@ it.each([
   ["foreign job", job("\tstate = running\n\tpid = 4242", "gui/501/ai.openclaw.other"), unknownJob],
   ["duplicate state", job("\tstate = running\n\tstate = waiting"), unknownJob],
 ] as const)("reports %s", async (_name, stdout, expected) => {
-  vi.mocked(execLaunchctl).mockResolvedValue(launchctlResult(0, stdout));
+  vi.mocked(execLaunchctl).mockResolvedValue(nativeExit(stdout));
   await expect(probeLaunchAgentState(target)).resolves.toEqual(expected);
 });
 
@@ -50,16 +45,14 @@ it.each([
     let bootCalls = 0;
     vi.mocked(execLaunchctl).mockImplementation(async (args) => {
       if (args[0] !== "bootstrap") {
-        return launchctlResult();
+        return nativeExit();
       }
       if (bootCalls++ === 0) {
         // The wall clock jumps between the deadline seed and the remaining read.
         vi.setSystemTime(Date.now() + wallJumpMs);
-        return launchctlResult(1, "", "bootstrap failed: 5");
+        return nativeExit("", "bootstrap failed: 5", 1);
       }
-      return bootstrapKeepsFailing
-        ? launchctlResult(1, "", "bootstrap failed: 5")
-        : launchctlResult();
+      return bootstrapKeepsFailing ? nativeExit("", "bootstrap failed: 5", 1) : nativeExit();
     });
     vi.useFakeTimers();
 

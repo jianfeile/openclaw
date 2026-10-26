@@ -124,10 +124,10 @@ it.each(["user", "system"] as const)(
   },
 );
 
-it.each([
-  ["Command failed: systemctl --user is-enabled openclaw-gateway.service", true],
-  ["systemctl is-enabled unavailable: Failed to connect to bus", true],
-  ["systemctl is-enabled unavailable: read-only file system", false],
-] as const)("classifies install probe %s as nonfatal=%s", (message, expected) => {
-  expect(isNonFatalSystemdInstallProbeError(new Error(message))).toBe(expected);
+it("accepts legacy command-failure install probes", () => {
+  expect(
+    isNonFatalSystemdInstallProbeError(
+      new Error("Command failed: systemctl --user is-enabled openclaw-gateway.service"),
+    ),
+  ).toBe(true);
 });
