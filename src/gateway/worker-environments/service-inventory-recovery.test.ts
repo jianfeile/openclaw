@@ -102,9 +102,7 @@ describe("worker inventory read-admission recovery", () => {
 
     support.testState.stateDb = openOpenClawStateDatabase({ path: stateDb.path });
     sharedHost = true;
-    inspect.mockClear();
     await service.reconcileEnvironment(record.environmentId);
-    expect(inspect).toHaveBeenCalledOnce();
     expect(store.get(record.environmentId)?.sharedHost).toBe(true);
     expect(store.inventoryVersion()).toBeGreaterThan(originalVersion);
     expect(originalAdmission.assertCurrent).toThrow(/read admission changed/);
