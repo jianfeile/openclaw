@@ -115,7 +115,7 @@ export function SelectedHumanMentions(props: SelectedHumanMentionsProps) {
   return (
     <Show when={people().length > 0}>
       <div class="chat-reply-preview composer-context-strip" role="status">
-        <span class="composer-context-strip__label">
+        <span class="composer-context-strip__label" title={t("chat.mentions.invitationHelp")}>
           <span class="composer-context-strip__icon" aria-hidden="true">
             <ComposerContent>
               <Icon name="bell" />
@@ -124,6 +124,7 @@ export function SelectedHumanMentions(props: SelectedHumanMentionsProps) {
           <span class="composer-context-strip__label-text">{t("chat.mentions.selectedLabel")}</span>
         </span>
         <span class="sr-only">
+          {t("chat.mentions.invitationHelp")}{" "}
           {people()
             .map((person) => person.name)
             .join(", ")}
