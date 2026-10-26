@@ -1,12 +1,13 @@
 import type { SessionEntryReadScope } from "../../config/sessions/session-accessor.types.js";
 import { operatorScopeSatisfied } from "../../shared/operator-scope-compat.js";
-import { resolveGatewayOperatorRoleActor } from "../operator-role-policy.js";
+import { operatorSessionCap, resolveGatewayOperatorRoleActor } from "../operator-role-policy.js";
 import {
   hasSessionReadAccessChanged,
   hiddenSessionNotFound,
   sharingIdentity,
 } from "../session-sharing-policy.js";
 import { captureSessionMutationRouting } from "../session-sharing-preparation.js";
+import { prepareSessionSharingRead } from "../session-sharing-target-read.js";
 import {
   createSessionListEntryFilter,
   SessionMutationAuthorizationChangedError,
@@ -56,6 +57,11 @@ export async function retainSessionScopedRead(
     cfg,
     { projection: readOptions.projection },
   );
+  let sharing: Awaited<ReturnType<typeof prepareSessionSharingRead>> | undefined;
+  const release = () => {
+    sharing?.release();
+    read.release();
+  };
   const assertCurrent = () => {
     authority.assertCurrent();
     const currentCfg = getConfig();
@@ -64,6 +70,7 @@ export async function retainSessionScopedRead(
     const visible = createSessionListEntryFilter({
       client: options.client,
       cfg: currentCfg,
+      membership: sharing?.readCurrent(currentCfg).membership,
     });
     if (
       (narrow &&
@@ -81,10 +88,13 @@ export async function retainSessionScopedRead(
     }
   };
   try {
+    if (operatorSessionCap(options.client, cfg) === "invited") {
+      sharing = await prepareSessionSharingRead({ cfg, sessionKey, agentId });
+    }
     assertCurrent();
-    return { assertCurrent, release: read.release, prepared: read };
+    return { assertCurrent, release, prepared: read };
   } catch (error) {
-    read.release();
+    release();
     throw error;
   }
 }
