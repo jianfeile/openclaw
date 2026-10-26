@@ -22,8 +22,11 @@ type Scenario = {
   platform?: "darwin";
 };
 
+// mock-isolation: Model container policy without reading the test host's environment or files.
 vi.mock("../infra/container-environment.js", () => ({ isContainerEnvironment: mocks.isContainer }));
+// mock-isolation: Control manager readiness without invoking an installed Gateway service.
 vi.mock("../daemon/service.js", () => ({ resolveGatewayService: mocks.service }));
+// mock-isolation: Model unit discovery without probing systemd on the test host.
 vi.mock("../daemon/systemd.js", () => ({ findInstalledSystemdGatewayScope: mocks.findScope }));
 
 beforeEach(() => {
