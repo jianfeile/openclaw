@@ -90,7 +90,9 @@ describe("MCP App sandbox security", () => {
   it("keeps the per-view prompt budget across iframe remounts", async () => {
     let active: HTMLIFrameElement;
     vi.spyOn(document, "activeElement", "get").mockImplementation(() => active);
-    onTestFinished(() => vi.restoreAllMocks());
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
     const key = `agent:main:main\0view-${crypto.randomUUID()}`;
     const first = (active = mountFrame());
     for (let index = 0; index < 10; index += 1) {
