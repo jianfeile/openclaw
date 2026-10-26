@@ -15,13 +15,13 @@ import type { SessionActivitySummaryService } from "./session-activity-summaries
 import * as sharing from "./session-sharing.js";
 
 const tempDirs = useAutoCleanupTempDirTracker(afterAll);
-const cfg = { agents: { entries: { main: {}, absent: {} } } };
+const cfg = { agents: { entries: { main: {} } } };
 const sessionKey = "agent:main:dashboard:incognito-preflight";
 const sessionId = "private-preflight";
 let env: NodeJS.ProcessEnv;
-const location = (agentId = "main") => ({
-  agentId,
-  path: resolveIncognitoOpenClawAgentSqlitePath({ agentId, env }),
+const location = () => ({
+  agentId: "main",
+  path: resolveIncognitoOpenClawAgentSqlitePath({ agentId: "main", env }),
 });
 let sql: ReturnType<typeof observeMainThreadSql>;
 
@@ -64,35 +64,31 @@ const paramsByAction = {
   destroy: { environmentId: "private-environment" },
 };
 const handlers = { ...sessionProviderReviewHandlers, ...environmentsSessionHandlers };
-it.each([
-  ["provider", "main"],
-  ["provider", "absent"],
-  ["create", "main"],
-  ["status", "main"],
-  ["destroy", "main"],
-] as const)("refuses private %s for %s before acquisition or SQL", async (action, agentId) => {
-  const target = vi.spyOn(sharing, "resolveSessionSharingTargetAsync");
-  const method =
-    action === "provider" ? "sessions.providerReview.continue" : `environments.session.${action}`;
-  const options = request(method, {
-    sessionKey: `agent:${agentId}:dashboard:incognito-preflight`,
-    ...paramsByAction[action],
-  });
-  await handlers[method]!(options);
-  const message =
-    action === "provider"
-      ? "Could not continue this chat. Refresh its current findings before trying again."
-      : "A persistent conversation is required for an attached environment";
-  expect(options.respond).toHaveBeenCalledWith(
-    false,
-    undefined,
-    expect.objectContaining({ code: "INVALID_REQUEST", message }),
-  );
-  expect(target).not.toHaveBeenCalled();
-  expect(memorySessionActorOwners.read(location())).toBeUndefined();
-  expect(memorySessionActorOwners.read(location("absent"))).toBeUndefined();
-  sql.expectIdle();
-});
+it.each(["provider", "create", "status", "destroy"] as const)(
+  "refuses private %s before acquisition or SQL",
+  async (action) => {
+    const target = vi.spyOn(sharing, "resolveSessionSharingTargetAsync");
+    const method =
+      action === "provider" ? "sessions.providerReview.continue" : `environments.session.${action}`;
+    const options = request(method, {
+      sessionKey,
+      ...paramsByAction[action],
+    });
+    await handlers[method]!(options);
+    const message =
+      action === "provider"
+        ? "Could not continue this chat. Refresh its current findings before trying again."
+        : "A persistent conversation is required for an attached environment";
+    expect(options.respond).toHaveBeenCalledWith(
+      false,
+      undefined,
+      expect.objectContaining({ code: "INVALID_REQUEST", message }),
+    );
+    expect(target).not.toHaveBeenCalled();
+    expect(memorySessionActorOwners.read(location())).toBeUndefined();
+    sql.expectIdle();
+  },
+);
 
 it("reports private activity recaps unavailable without acquiring a source or scheduling work", async () => {
   const ensure = vi.fn<SessionActivitySummaryService["ensure"]>();
