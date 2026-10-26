@@ -50,7 +50,9 @@ function record(message?: string): ManagedHandoffSentinelRequest {
   };
 }
 
-beforeEach(() => owner.mockReset());
+beforeEach(() => {
+  owner.mockReset();
+});
 
 async function invoke(params: Record<string, unknown>) {
   const respond = vi.fn<RespondFn>();
