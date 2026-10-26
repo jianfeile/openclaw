@@ -343,6 +343,9 @@ export function createSqliteSessionActorExecutor(
                       true,
                       entry,
                       entry,
+                      new Set(
+                        committed.receipt.postimage.members.map((member) => member.identityId),
+                      ),
                     );
                     if (entry) {
                       // Actor delivery settlement can release the last durable recovery claim.
