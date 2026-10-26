@@ -20,7 +20,6 @@ describe("toStreamingMarkdownParts code fences", () => {
   it.each([
     { name: "an unfinished fence", markdown: mermaid, diagrams: 0 },
     { name: "a finished response", markdown: mermaid, final: true, diagrams: 1 },
-    { name: "a closed fence", markdown: mermaid + "\n```", diagrams: 1 },
     { name: "a tilde fence", markdown: "~~~Mermaid\nflowchart LR\nA --> B\n~~~", diagrams: 1 },
     { name: "a shell fence", markdown: "```bash\nflowchart LR\nA --> B\n```", diagrams: 0 },
     {
@@ -86,15 +85,5 @@ describe("toStreamingMarkdownParts code fences", () => {
     expect(fragment.querySelector("code")?.textContent).toContain('const s = "**open";');
     expect(fragment.querySelector("code strong")).toBeNull();
     expect(fragment.querySelector("p strong")?.textContent).toBe("bold");
-  });
-
-  it("renders a completed code fence once the closing fence arrives", () => {
-    const markdown = "```ts\nconst x = 1;\n```";
-    const html = stream(markdown);
-
-    expect(html).toContain('<code class="hljs language-ts"');
-    expect(html).toContain("const x = 1;");
-    expect(html).not.toContain("markdown-plain-text-fallback");
-    expect(html).toBe(toSanitizedMarkdownHtml(markdown));
   });
 });

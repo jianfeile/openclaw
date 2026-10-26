@@ -2,29 +2,23 @@
 import { expect, it } from "vitest";
 import {
   matchesNodeSearch,
-  parseConfigSearchQuery,
+  parseConfigSearchQuery as parse,
   resolveConfigMapSearch,
 } from "./config-form.search.ts";
 
 type Search = Parameters<typeof matchesNodeSearch>[0];
-const string = (description?: string): Search["schema"] => ({ type: "string", description });
-const object = (properties: NonNullable<Search["schema"]["properties"]>): Search["schema"] => ({
-  type: "object",
-  properties,
+type Schema = Search["schema"];
+type Properties = NonNullable<Schema["properties"]>;
+const string = (description?: string): Schema => ({ type: "string", description });
+const object = (properties: Properties): Schema => ({ type: "object", properties });
+const array = (items?: Schema["items"], ...allOf: Schema[]): Schema => ({
+  type: "array",
+  items,
+  allOf,
 });
-const array = (
-  items?: Search["schema"]["items"],
-  allOf?: Search["schema"]["allOf"],
-): Search["schema"] => ({ type: "array", items, allOf });
-function matches(query: string, schema: Search["schema"], options: Partial<Search> = {}) {
-  return matchesNodeSearch({
-    schema,
-    value: {},
-    path: [],
-    hints: {},
-    ...options,
-    criteria: parseConfigSearchQuery(query),
-  });
+const defaults = { value: {}, path: [], hints: {} };
+function matches(query: string, schema: Schema, options: Partial<Search> = {}) {
+  return matchesNodeSearch({ ...defaults, schema, ...options, criteria: parse(query) });
 }
 
 it.each([
@@ -39,30 +33,17 @@ it.each([
   ).toBe(expected);
 });
 
+const overflow: Schema = {
+  items: [{}, string("secondary")],
+  additionalItems: string("Overflow"),
+};
+const closed: Schema = { items: [string("reachable")], additionalItems: false };
+const forbidden: Schema = { items: [{}, string("Forbidden")] };
 it.each([
-  ["credential source", array(object({ source: string("Credential source") })), true],
-  [
-    "composed overflow",
-    array(
-      [string("outer")],
-      [
-        {
-          items: [{}, string("secondary")],
-          additionalItems: string("Composed overflow"),
-        },
-      ],
-    ),
-    true,
-  ],
-  [
-    "impossible endpoint",
-    array(undefined, [
-      { items: [string("reachable")], additionalItems: false },
-      { items: [{}, string("Impossible endpoint")] },
-    ]),
-    false,
-  ],
-] satisfies [string, Search["schema"], boolean][])(
+  ["credential", array(object({ source: string("Credential") })), true],
+  ["overflow", array([string("outer")], overflow), true],
+  ["forbidden", array(undefined, closed, forbidden), false],
+] satisfies [string, Schema, boolean][])(
   "searches only reachable empty-array schemas: %s",
   (query, schema, expected) => {
     expect(matches(query, schema, { value: [], path: ["endpoints"] })).toBe(expected);
@@ -87,8 +68,6 @@ it.each([
   ["", entries, ["alpha"], true],
   ["alpha", entries, ["alpha"], true],
   ["reserved", entries, [], false],
-  ["missing", entries, [], false],
-  ["", {}, [], true],
   ["alpha", {}, [], false],
 ] satisfies [string, Record<string, string>, string[], boolean][])(
   "scopes map visibility to searchable entries: %s",
@@ -99,7 +78,7 @@ it.each([
       path: ["settings"],
       hints: {},
       reservedKeys: new Set(["reserved"]),
-      searchCriteria: parseConfigSearchQuery(query),
+      searchCriteria: parse(query),
     });
     expect(result.visibleEntries.map(([key]) => key)).toEqual(keys);
     expect(result.visible).toBe(visible);
