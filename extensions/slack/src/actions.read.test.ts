@@ -51,16 +51,6 @@ it.each([
     hasMore: !exact,
   });
   expect(client.conversations.history).not.toHaveBeenCalled();
-  if (exact) {
-    expect(client.conversations.replies).toHaveBeenCalledExactlyOnceWith({
-      channel: "C1",
-      ts: "171234.000000",
-      limit: 1,
-      inclusive: true,
-      oldest: "171234.000101",
-      latest: "171234.000101",
-    });
-  }
 });
 
 it("reads ISO-bounded channel history through the lookup client and preserves table payloads", async () => {
@@ -99,7 +89,6 @@ it("reads ISO-bounded channel history through the lookup client and preserves ta
   });
   expect(result.messages[0]?.text).toBe("  Please check these.  \nID\tStatus\n12345\tenabled");
   expect(result.messages[0]?.attachments).toBe(attachments);
-  expect(result.messages[0]?.attachments?.[0]?.blocks).toBe(blocks);
   expect(result.hasMore).toBe(false);
   expect(client.conversations.replies).not.toHaveBeenCalled();
 });

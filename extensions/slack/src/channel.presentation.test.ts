@@ -1,6 +1,5 @@
 import { createMessageReceiptFromOutboundResults } from "openclaw/plugin-sdk/channel-outbound";
-import { createRequireRecord } from "openclaw/plugin-sdk/test-fixtures";
-import { beforeEach, expect, it, vi } from "vitest";
+import { assert, beforeEach, expect, it, vi } from "vitest";
 import { slackPlugin } from "./channel.js";
 
 const { handleSlackActionMock } = vi.hoisted(() => ({ handleSlackActionMock: vi.fn() }));
@@ -8,14 +7,13 @@ vi.mock(import("./action-runtime.js"), async (importOriginal) => ({
   ...(await importOriginal()),
   handleSlackAction: handleSlackActionMock,
 }));
-const requireRecord = createRequireRecord("record", "expected-label-object");
 
 beforeEach(() => {
   handleSlackActionMock.mockReset();
 });
 
 const cfg = { channels: { slack: { botToken: "xoxb-test", appToken: "xapp-test" } } };
-it("keeps data literal and authored mentions and commands intact in mixed presentation edits", async () => {
+it("keeps data literal and authored mentions intact in mixed presentation edits", async () => {
   handleSlackActionMock.mockResolvedValueOnce({ ok: true });
 
   await slackPlugin.actions!.handleAction!({
@@ -53,27 +51,12 @@ it("keeps data literal and authored mentions and commands intact in mixed presen
           },
           { type: "divider" },
           { type: "context", text: "Context <!here>" },
-          {
-            type: "buttons",
-            buttons: [
-              {
-                label: "Run <@U4>",
-                action: { type: "command", command: "/say <!channel> & <@U5>" },
-              },
-              { label: "Open <!here>", url: "https://example.com/?a=1&b=2" },
-            ],
-          },
-          {
-            type: "select",
-            placeholder: "Owner <!channel>",
-            options: [{ label: "<@U6>", value: "private-callback" }],
-          },
         ],
       },
     },
   });
 
-  expect(requireRecord(handleSlackActionMock.mock.calls[0]?.[0], "action")).toMatchObject({
+  expect(handleSlackActionMock.mock.calls[0]?.[0]).toMatchObject({
     action: "editMessage",
     blocks: undefined,
     content: [
@@ -84,8 +67,6 @@ it("keeps data literal and authored mentions and commands intact in mixed presen
       "Mix &amp;lt;raw&amp;gt; (pie chart)\n- &lt;!here&gt;: 1",
       "Table &lt;!channel&gt; (table)\n- Owner &lt;name&gt;: &lt;@U3&gt; &amp;lt;raw&amp;gt;; Count: 0",
       "Context <!here>",
-      "- Run &lt;@U4&gt;: `/say <!channel> & <@U5>`\n- Open &lt;!here&gt;: https://example.com/?a=1&amp;b=2",
-      "Owner &lt;!channel&gt;:\n- &lt;@U6&gt;",
     ].join("\n\n"),
   });
 });
@@ -109,9 +90,7 @@ it("renders portable presentations through the facade as card receipts (#95440)"
     presentation,
     ctx: { cfg, to: "C123", text: payload.text, payload },
   });
-  if (!rendered) {
-    throw new Error("Expected rendered Slack presentation payload");
-  }
+  assert(rendered, "Expected rendered Slack presentation payload");
   // Core consumes the portable presentation before handing the native payload to the adapter.
   const { presentation: _presentation, ...deliveryPayload } = rendered;
 

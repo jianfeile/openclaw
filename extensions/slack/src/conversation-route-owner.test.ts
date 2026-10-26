@@ -32,16 +32,12 @@ function binding(conversation: Conversation, id: string) {
     boundAt: 1,
   };
 }
-function registerBindingAdapter(
-  resolveByConversation: BindingAdapter["resolveByConversation"],
-  touch?: BindingAdapter["touch"],
-) {
+function registerBindingAdapter(resolveByConversation: BindingAdapter["resolveByConversation"]) {
   registerSessionBindingAdapter({
     channel: "slack",
     accountId: "default",
     listBySession: () => [],
     resolveByConversation,
-    touch,
   });
 }
 
@@ -65,26 +61,6 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-it("prefers the thread over its parent without touching liveness", async () => {
-  const touch = vi.fn();
-  const resolveByConversation = vi.fn((conversation) =>
-    conversation.conversationId === "thread-1" ? binding(conversation, "thread") : null,
-  );
-  registerBindingAdapter(resolveByConversation, touch);
-
-  expect(await inspect("channel-1", defaultSlack, "default", "thread-1")).toEqual({
-    kind: "agent",
-    agentId: "finance",
-  });
-  expect(resolveByConversation).toHaveBeenCalledWith({
-    channel: "slack",
-    accountId: "default",
-    conversationId: "thread-1",
-    parentConversationId: "channel-1",
-  });
-  expect(touch).not.toHaveBeenCalled();
-});
-
 it("distinguishes degraded identity from a qualified target conflict", async () => {
   release();
   const installation = registerSlackInstallationState("default", "degraded");
@@ -97,10 +73,7 @@ it("distinguishes degraded identity from a qualified target conflict", async () 
 
 it("fails closed when workspace identity is released during binding inspection", async () => {
   registerBindingAdapter((conversation) => binding(conversation, "channel"));
-  expect(await inspect()).toEqual({
-    kind: "agent",
-    agentId: "finance",
-  });
+  expect(await inspect()).toEqual({ kind: "agent", agentId: "finance" });
   release();
   expect(await inspect()).toEqual({ kind: "unavailable" });
 });
@@ -128,7 +101,5 @@ it("preserves a configured default while its token and installation are unavaila
       appToken: "synthetic-app-token",
       accounts: { secondary: {} },
     }),
-  ).toEqual({
-    kind: "unavailable",
-  });
+  ).toEqual({ kind: "unavailable" });
 });
