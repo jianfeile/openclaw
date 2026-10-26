@@ -92,16 +92,12 @@ it.each([
     expect(matchesPublication({ ...state, [field]: legacyId }, legacy)).toBe(true);
     expect(matchesPublication(state, state)).toBe(true);
     const replaced = { ...state, [field]: (BigInt(exactId) + 1n).toString() };
-    expect([matchesPublication(replaced, legacy), matchesPublication(replaced, state)]).toEqual([
-      rounded,
-      false,
-    ]);
+    expect(matchesPublication(replaced, legacy)).toBe(rounded);
+    expect(matchesPublication(replaced, state)).toBe(false);
     for (const timestamp of ["mtimeMs", "ctimeMs"] as const) {
       const settled = { ...state, [timestamp]: state[timestamp] + 10 };
-      expect([matchesPublication(settled, state), matchesState(settled, state)]).toEqual([
-        true,
-        false,
-      ]);
+      expect(matchesPublication(settled, state)).toBe(true);
+      expect(matchesState(settled, state)).toBe(false);
     }
     expect(matchesPublication({ ...state, sha256: "b".repeat(64) }, state)).toBe(false);
   },

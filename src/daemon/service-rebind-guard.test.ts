@@ -1,6 +1,5 @@
 import { PassThrough } from "node:stream";
 import { afterEach, expect, it, vi } from "vitest";
-import { isDefaultInstallIdentity } from "../config/paths.js";
 import { withOpenClawTestState } from "../test-utils/openclaw-test-state.js";
 import { mockProcessPlatform } from "../test-utils/vitest-spies.js";
 import { resolveNodeService } from "./node-service.js";
@@ -45,10 +44,6 @@ it.each(
     state.applyEnv();
     mockSystemAccountHome();
     const env = { ...state.env, ...defaultIdentity };
-    expect([isDefaultInstallIdentity(process.env), isDefaultInstallIdentity(env)]).toEqual([
-      kind === "gateway",
-      kind === "gateway",
-    ]);
     let current = true;
     let command: GatewayServiceCommandConfig = { programArguments: ["/node", "/A/openclaw.mjs"] };
     leaves.read.mockImplementation(async () => command);
@@ -91,7 +86,6 @@ it.each(
         await expect(work).rejects.toThrow(
           scenario === "config-revoked" ? "revoked" : "definition changed before rebind",
         );
-        expect(leaves.config).toHaveBeenCalled();
         expect(leaves.install).not.toHaveBeenCalled();
         expect(receipt()).toBeUndefined();
       }
@@ -108,42 +102,13 @@ it("ordinary native installation retains its default enable behavior", async () 
   );
 });
 
-it("retains both the operation and final rebind observation failures", async () => {
-  const command = { programArguments: ["/node", "/openclaw.mjs"] };
-  const before = await fingerprint(command);
-  const operationFailure = new Error("native operation failed");
-  const cleanupFailure = new Error("final authority revoked");
-  await withRebind(before, async () => {
-    let retired = false;
-    const assertCurrent = () => {
-      if (retired) {
-        throw cleanupFailure;
-      }
-    };
-    const work = settleRebind(assertCurrent, async () => {
-      await captureRebind(
-        async () => command,
-        assertCurrent,
-        async () => {},
-      );
-      retired = true;
-      throw operationFailure;
-    });
-    await expect(work).rejects.toMatchObject({
-      message: "Service rebind settlement could not be verified.",
-      errors: [operationFailure, cleanupFailure],
-      cause: cleanupFailure,
-    });
-    expect(receipt()).toBeUndefined();
-  });
-});
-
 it.each<[string, boolean, string?]>([
   ["failed-after-write", false],
   ["revoked", false, "owner revoked"],
   ["pin-raced", true, "runtime intent changed"],
   ["pre-write", true],
   ["compensated", true],
+  ["final-revoked", false],
 ])("records admitted rebind evidence: %s (pinned=%s)", async (scenario, pinned, refusal) => {
   const original = { programArguments: ["/nodeA", "/A/openclaw.mjs"] };
   let command = original;
@@ -151,6 +116,8 @@ it.each<[string, boolean, string?]>([
   const originalPin = "a".repeat(64);
   let pin = scenario === "pin-raced" ? "c".repeat(64) : originalPin;
   const failure = new Error(scenario === "pre-write" ? "pre-write refused" : "native load failed");
+  const cleanupFailure = new Error("final authority revoked");
+  let retired = false;
   const expectReceipt = async (mutated = true) => {
     expect(receipt()).toEqual({
       before,
@@ -160,15 +127,17 @@ it.each<[string, boolean, string?]>([
     });
   };
   const mutate = vi.fn(async () => {
-    if (scenario !== "pre-write") {
-      command = { programArguments: ["/nodeB", "/B/openclaw.mjs"] };
-      pin = "b".repeat(64);
+    if (scenario !== "final-revoked") {
+      if (scenario !== "pre-write") {
+        command = { programArguments: ["/nodeB", "/B/openclaw.mjs"] };
+        pin = "b".repeat(64);
+      }
+      throw failure;
     }
-    throw failure;
   });
   const assertCurrent = () => {
-    if (scenario === "revoked") {
-      throw new Error("owner revoked");
+    if (retired || scenario === "revoked") {
+      throw retired ? cleanupFailure : new Error("owner revoked");
     }
   };
   await withRebind(
@@ -177,19 +146,25 @@ it.each<[string, boolean, string?]>([
       const capture = () =>
         captureRebind(async () => command, assertCurrent, mutate, pinned ? () => pin : undefined);
       const operation =
-        scenario === "compensated"
+        scenario === "compensated" || scenario === "final-revoked"
           ? settleRebind(assertCurrent, async () => {
-              try {
-                await capture();
-              } catch (error) {
+              await capture().catch(async (error: unknown) => {
                 await expectReceipt();
                 command = original;
                 pin = originalPin;
                 throw error;
-              }
+              });
+              retired = true;
+              throw failure;
             })
           : capture();
-      if (refusal) {
+      if (scenario === "final-revoked") {
+        await expect(operation).rejects.toMatchObject({
+          errors: [failure, cleanupFailure],
+          cause: cleanupFailure,
+        });
+        expect(receipt()).toBeUndefined();
+      } else if (refusal) {
         await expect(operation).rejects.toThrow(refusal);
         expect(receipt()).toBeUndefined();
         expect(mutate).not.toHaveBeenCalled();

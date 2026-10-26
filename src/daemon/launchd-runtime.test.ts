@@ -71,7 +71,6 @@ it.each([
 
     await vi.advanceTimersByTimeAsync(advanceMs);
     await Promise.resolve();
-    // The loop must settle within the monotonic budget regardless of the wall clock.
     expect(settled).toBe(true);
 
     if (wallJumpMs > 0) {

@@ -37,17 +37,15 @@ const actions = ["stage", "install", "uninstall", "start", "stop", "restart"] as
 const programArguments = ["/usr/bin/node", "/opt/openclaw/openclaw.mjs", "node", "run"];
 async function withNodeHome(platform: "linux" | "darwin", run: (home: string) => Promise<void>) {
   const home = dirs.make("openclaw-node-");
-  await withEnvAsync(
-    createPathResolutionEnv(home, {
-      OPENCLAW_STATE_DIR: path.join(home, "state"),
-      OPENCLAW_PROFILE: undefined,
-    }),
-    async () => {
-      // Create private stores on the real host before selecting the native adapter.
-      await withDaemonRuntimePinMigration(process.env, () => undefined);
-      await withMockedPlatform(platform, () => run(home));
-    },
-  );
+  const env = createPathResolutionEnv(home, {
+    OPENCLAW_STATE_DIR: path.join(home, "state"),
+    OPENCLAW_PROFILE: undefined,
+  });
+  await withEnvAsync(env, async () => {
+    // Create private stores on the real host before selecting the native adapter.
+    await withDaemonRuntimePinMigration(process.env, () => undefined);
+    await withMockedPlatform(platform, () => run(home));
+  });
 }
 afterEach(() => {
   closeOpenClawStateDatabaseForTest();

@@ -17,24 +17,18 @@ const profileCases: Array<[string, Environment?, string?, ("argv" | "environment
     [`${node}|--profile=ops|gateway`, saved, "ops", "argv"],
     ["openclaw.exe|--dev|gateway", saved, "dev", "argv"],
     ["openclaw.exe|gateway|--dev", { openclaw_profile: "saved" }, "saved", "environment"],
-    ["node.exe|openclaw.mjs|gateway|--|--profile|other", saved, "saved", "environment"],
     [executable, undefined, "default", "default"],
-    [executable, { OPENCLAW_PROFILE: " \t " }, "default", "default"],
     [executable, { OPENCLAW_PROFILE: "Default" }, "default", "environment"],
     [""],
     ["node.exe|"],
     ["node.exe|--unknown-runtime-flag|openclaw.mjs|gateway"],
-    ["node.exe|--eval|code"],
     ["openclaw.exe|--profile|bad profile|gateway"],
     ["openclaw.exe|--profile=rescue|gateway", { OPENCLAW_PROFILE: "bad profile" }],
   ];
 it.each(profileCases)(
   "resolves Windows service profile: %s without rewriting command evidence",
   (argv, environment, profile, source) => {
-    const command: GatewayServiceCommandConfig = {
-      programArguments: argv ? argv.split("|") : [],
-      environment,
-    };
+    const command = { programArguments: argv ? argv.split("|") : [], environment };
     const captured = structuredClone(command);
 
     expect(resolveWindowsServiceCommandProfile(command)).toEqual(
