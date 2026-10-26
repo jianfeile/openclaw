@@ -48,13 +48,6 @@ export type DiagnosticProfileOutcome<Result> =
   | { status: "unavailable"; reason: FailureReason; cleanupFailed: boolean };
 
 type ProfileMemoryUsage = NodeJS.MemoryUsage & { heapSpaces: HeapSpaceInfo[] };
-type ProfileMeasurement = {
-  durationMs: number;
-  startBlockedMs: number;
-  before: ProfileMemoryUsage;
-  after: ProfileMemoryUsage;
-};
-
 export class ProfileFailure extends Error {
   constructor(readonly reason: FailureReason) {
     super(reason);
@@ -243,7 +236,12 @@ export async function captureDiagnosticProfile<Profile, Result>(options: {
   sanitize: (
     profile: Profile,
     packageRoot: string | null,
-    measurement: ProfileMeasurement,
+    measurement: {
+      durationMs: number;
+      startBlockedMs: number;
+      before: ProfileMemoryUsage;
+      after: ProfileMemoryUsage;
+    },
   ) => Result | Promise<Result>;
 }): Promise<DiagnosticProfileOutcome<Result>> {
   const unavailable = (
@@ -333,7 +331,9 @@ export async function captureDiagnosticProfile<Profile, Result>(options: {
         ? error.reason
         : options.signal?.aborted
           ? "cancelled"
-          : "capture-failed";
+          : error instanceof Error && error.message.startsWith("Inspector error -32601:")
+            ? "unsupported"
+            : "capture-failed";
   } finally {
     if (capture) {
       if (startAttempted && !stopAttempted) {

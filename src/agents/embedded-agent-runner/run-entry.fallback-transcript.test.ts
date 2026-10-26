@@ -18,6 +18,7 @@ import { readModelFallbackNotice } from "../../shared/model-fallback-notice.js";
 import { prepareSystemAgentRunAdmission } from "../admitted-run-context.js";
 import { FailoverError } from "../failover-error.js";
 import type { ModelFallbackStepFields } from "../model-fallback-observation.js";
+import { resetStickyRateLimitFallbacksForTest } from "../model-fallback-sticky.test-support.js";
 import { runEmbeddedAgentEntry } from "./run-entry.js";
 import { createDirectHarness, makeResult } from "./run-entry.test-support.js";
 
@@ -36,8 +37,12 @@ vi.mock("../harness/selection.js", () => ({
 }));
 
 describe("run entry durable fallback notices", () => {
+  const primary = "openai/gpt-4.1-mini";
+  const backup = "anthropic/claude-haiku-3-5";
   const files = useTempSessionsFixture("fallback-transcript-");
   afterEach(() => {
+    // These cases share one session id and deliberately leave rate-limit stickiness behind.
+    resetStickyRateLimitFallbacksForTest();
     clearRuntimeConfigSnapshot();
     vi.restoreAllMocks();
   });
@@ -149,7 +154,9 @@ describe("run entry durable fallback notices", () => {
     using f = await fixture();
     const result = await f.run();
     expect(result.provider).toBe("anthropic");
-    expect(result.result.meta.modelFallbackTranscriptToModel).toBe("anthropic/claude-haiku-3-5");
+    expect(result.result.meta.modelFallbackTranscriptToModel).toBe(backup);
+    // Stickiness skips the second transition; this test covers de-duplication across repeated transitions.
+    resetStickyRateLimitFallbacksForTest();
     expect((await f.run()).provider).toBe("anthropic");
     expect(f.steps.map((step) => step.fallbackStepFinalOutcome)).toEqual([
       "next_fallback",
@@ -157,6 +164,8 @@ describe("run entry durable fallback notices", () => {
       "next_fallback",
       "succeeded",
     ]);
+    await f.run();
+    expect(f.candidates).toEqual([primary, backup, primary, backup, backup]);
     const events = await loadTranscriptEvents(f.scope);
     const notices = events
       .map((event) => readModelFallbackNotice(asOptionalRecord(event)?.message))
@@ -165,8 +174,8 @@ describe("run entry durable fallback notices", () => {
       {
         kind: "model-fallback",
         runId: f.scope.runId,
-        fromModel: "openai/gpt-4.1-mini",
-        toModel: "anthropic/claude-haiku-3-5",
+        fromModel: primary,
+        toModel: backup,
         reason: "rate_limit",
       },
     ]);
@@ -188,7 +197,7 @@ describe("run entry durable fallback notices", () => {
     expect(result.provider).toBe("anthropic");
     expect(result.result.meta.modelFallbackTranscriptToModel).toBeUndefined();
     expect(append).toHaveBeenCalledTimes(2);
-    expect(f.candidates).toEqual(["openai/gpt-4.1-mini", "anthropic/claude-haiku-3-5"]);
+    expect(f.candidates).toEqual([primary, backup]);
   });
 
   it("records a skipped transition only after the backup admits its run", async () => {
@@ -259,7 +268,7 @@ describe("run entry durable fallback notices", () => {
       }
       await expect(f.run()).rejects.toThrow(message);
       expect(await loadTranscriptEvents(f.scope)).toEqual([]);
-      expect(f.candidates).toEqual(["openai/gpt-4.1-mini"]);
+      expect(f.candidates).toEqual([primary]);
     },
   );
 
@@ -268,6 +277,10 @@ describe("run entry durable fallback notices", () => {
     async (skip) => {
       using f = await fixture({ [skip]: true });
       expect((await f.run()).provider).toBe("anthropic");
+      if (skip === "maintenance") {
+        await f.run();
+        expect(f.candidates).toEqual([primary, backup, primary, backup]);
+      }
       expect(await loadTranscriptEvents(f.scope)).toEqual([]);
     },
   );
