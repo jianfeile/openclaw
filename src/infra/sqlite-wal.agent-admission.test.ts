@@ -19,6 +19,7 @@ import { withEnvAsync } from "../test-utils/env.js";
 import { openNodeSqliteDatabase } from "./node-sqlite.js";
 import { onSqliteWalCheckpoint } from "./sqlite-wal-checkpoint.js";
 import { observeSqliteWalPeriodicWork } from "./sqlite-wal-scheduler.test-support.js";
+import * as walAdmission from "./sqlite-wal-write-admission.js";
 
 const tempDirs = useAutoCleanupTempDirTracker(afterEach);
 afterEach(async () => {
@@ -34,8 +35,28 @@ it.each(["keep", "close", "replace"] as const)(
     await withEnvAsync({ OPENCLAW_STATE_DIR: root }, async () => {
       openOpenClawStateDatabase();
       const scheduled = observeSqliteWalPeriodicWork();
-      const database = openOpenClawAgentDatabase({ agentId: "main" });
-      scheduled.restore();
+      const queued = createDeferredCore();
+      const register = walAdmission.registerSqliteWalWorkerMaintenance;
+      const registration = vi
+        .spyOn(walAdmission, "registerSqliteWalWorkerMaintenance")
+        .mockImplementation((database, execute, cancel) =>
+          register(
+            database,
+            (request) => {
+              const work = execute(request);
+              queued.resolve();
+              return work;
+            },
+            cancel,
+          ),
+        );
+      let database: ReturnType<typeof openOpenClawAgentDatabase>;
+      try {
+        database = openOpenClawAgentDatabase({ agentId: "main" });
+      } finally {
+        registration.mockRestore();
+        scheduled.restore();
+      }
       const periodic = scheduled.periodic;
       database.db
         .prepare(
@@ -84,11 +105,11 @@ it.each(["keep", "close", "replace"] as const)(
           await release.promise;
         });
         await entered.promise;
-        const initialPeriodicWork: Promise<unknown>[] = [];
+        let initialPeriodicWork: Promise<unknown> | undefined;
         try {
-          initialPeriodicWork.push(Promise.resolve(periodic()));
-          initialPeriodicWork.push(Promise.resolve(periodic()));
-          initialPeriodicWork.push(Promise.resolve(periodic()));
+          initialPeriodicWork = Promise.resolve(periodic());
+          // Retire queued maintenance only after sidecar inspection has released its guard.
+          await queued.promise;
           expect(vacuumCalls()).toHaveLength(0);
           expect(checkpointCalls()).toHaveLength(0);
           expect(freePages()).toBe(before);
@@ -110,7 +131,7 @@ it.each(["keep", "close", "replace"] as const)(
             await runOpenClawAgentWriteAdmission(options, () => undefined);
             await foreground;
           } finally {
-            await Promise.all(initialPeriodicWork);
+            await initialPeriodicWork;
           }
         }
         if (retirement === "keep") {
