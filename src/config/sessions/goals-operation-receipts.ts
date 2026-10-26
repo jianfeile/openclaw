@@ -1,7 +1,6 @@
 // Native receipt reads and writes must not acquire host session actors.
 import { safeParseJson } from "@openclaw/normalization-core/json-coercion";
-import { lazyCompile } from "../../../packages/gateway-protocol/src/protocol-validator.js";
-import { SessionsGoalMutationResultSchema } from "../../../packages/gateway-protocol/src/schema/sessions-goal.js";
+import { validateSessionsGoalMutationResult as validateReceipt } from "../../../packages/gateway-protocol/src/session-result-validators.js";
 import {
   executeSqliteQuerySync,
   executeSqliteQueryTakeFirstSync,
@@ -28,8 +27,6 @@ import {
 import { readSessionEntryRow } from "./session-accessor.sqlite-entry-read.js";
 import { getSessionKysely } from "./session-accessor.sqlite-scope-helpers.js";
 import type { SessionGoal } from "./types.js";
-
-const validateReceipt = lazyCompile<SessionGoalOperationResult>(SessionsGoalMutationResultSchema);
 
 /** Read the receipt and its session generation from one admitted snapshot. */
 export function readSessionGoalOperationInDatabase(

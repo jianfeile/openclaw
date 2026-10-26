@@ -4,6 +4,7 @@ import { captureSessionActorStorageOwner } from "./session-actor-storage-binding
 import type { PendingInputSourceRead } from "./session-pending-input-operations.types.js";
 import type { PendingInputScope } from "./session-pending-input-store.js";
 import { captureSessionStoreReadTarget } from "./session-store-read-target.js";
+import { targetDiscoveryLane } from "./session-transcript-worker-resources.js";
 import { withSessionHistoryWorkerDatabase } from "./session-transcript-worker-runtime.js";
 import { captureSessionTranscriptStorageEnvironment } from "./transcript-target-binding.js";
 
@@ -80,12 +81,15 @@ export async function readPendingInputSource(
     return undefined;
   }
   assertCurrent();
-  const snapshot = await withSessionHistoryWorkerDatabase(options, (owner) =>
-    owner.readPendingInputSource({
-      input: { ...input, sessionKey: resolved.sessionKey },
-      env: captured.env,
-      source,
-    }),
+  const snapshot = await withSessionHistoryWorkerDatabase(
+    options,
+    (owner) =>
+      owner.readPendingInputSource({
+        input: { ...input, sessionKey: resolved.sessionKey },
+        env: captured.env,
+        source,
+      }),
+    targetDiscoveryLane,
   );
   assertCurrent();
   return { path: identity.canonicalPath, snapshot, assertCurrent };

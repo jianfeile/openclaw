@@ -8,6 +8,7 @@ import { runWithSessionActorStorage } from "../../config/sessions/session-actor-
 import { composeSessionSourceAssertion } from "../../config/sessions/session-source-authority.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { getAgentEventLifecycleGeneration } from "../../infra/agent-events.js";
+import { withPluginRetentionOwner } from "../../plugins/plugin-retention-diagnostics.js";
 import {
   getRpcSourceForGateway,
   isRpcSourceRegistered,
@@ -106,11 +107,6 @@ export function createAgentTurnService(
     // Cached replay returns before a new lifecycle generation is observed, matching
     // the idempotency path that preceded this service extraction.
     const lifecycleGeneration = getAgentEventLifecycleGeneration();
-    const initialSessionGroups = {
-      groupId: normalizedSpawned.groupId,
-      groupChannel: normalizedSpawned.groupChannel,
-      groupSpace: normalizedSpawned.groupSpace,
-    };
     const ownerConnId = typeof principal?.connId === "string" ? principal.connId : undefined;
     const ownerDeviceId =
       typeof principal?.connect?.device?.id === "string" ? principal.connect.device.id : undefined;
@@ -280,7 +276,9 @@ export function createAgentTurnService(
           isNewSession: false,
           skipAgentInitialSessionTouch: false,
           admittedSessionId: requestedSessionId ?? runId,
-          ...initialSessionGroups,
+          groupId: normalizedSpawned.groupId,
+          groupChannel: normalizedSpawned.groupChannel,
+          groupSpace: normalizedSpawned.groupSpace,
         };
         let effectiveBootstrapContextRunKind = preflight.bootstrapContextRunKind;
         let restoredCronContinuationIdentity:
@@ -710,7 +708,9 @@ export function createAgentTurnService(
       }
     };
     try {
-      await (sessionStorage ? runWithSessionActorStorage(sessionStorage, execute) : execute());
+      await withPluginRetentionOwner({ runId, serviceId: "gateway-agent-turn" }, () =>
+        sessionStorage ? runWithSessionActorStorage(sessionStorage, execute) : execute(),
+      );
     } finally {
       if (!gatewayAdmissionTransferred) {
         await releaseSessionStorage();

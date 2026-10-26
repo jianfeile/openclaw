@@ -19,6 +19,7 @@ import {
   writeSessionEntry,
 } from "./session-accessor.sqlite-entry-store.js";
 import { resolveSqliteTranscriptScope } from "./session-accessor.sqlite-scope.js";
+import type { TranscriptAppendCursor } from "./session-accessor.sqlite-transcript-append.types.js";
 import {
   appendTranscriptMessageInTransaction,
   type PreparedTranscriptMessageAppend,
@@ -103,6 +104,7 @@ export function appendTranscriptEventSnapshotSync(
     onProjectionReconcileNeeded: () => void;
     eventJson?: string;
     persistActorMutation?: boolean;
+    cursor?: TranscriptAppendCursor;
   },
   view?: TranscriptWriteViewGuard,
   transaction?: OpenClawAgentDatabase,
@@ -118,10 +120,16 @@ export function appendTranscriptEventSnapshotSync(
         options,
       );
       if (
-        appendTranscriptEventInTransaction(database, resolved, resolvedEvent, {
-          ...projection,
-          eventJson: resolvedEvent === event ? projection?.eventJson : undefined,
-        }) === false
+        appendTranscriptEventInTransaction(
+          database,
+          resolved,
+          resolvedEvent,
+          {
+            ...projection,
+            eventJson: resolvedEvent === event ? projection?.eventJson : undefined,
+          },
+          projection?.cursor,
+        ) === false
       ) {
         return { appended: false };
       }
