@@ -2,6 +2,7 @@ import {
   ErrorCodes,
   errorShape,
   type ErrorShape,
+  type HelloOk,
 } from "../../packages/gateway-protocol/src/index.js";
 import { GATEWAY_OWNER_PROFILE_ID } from "../../packages/gateway-protocol/src/schema/users.js";
 import { assertAdmittedRunOperatorAuthority } from "../agents/admitted-run-context.js";
@@ -244,7 +245,10 @@ export function authorizeCurrentOperatorRoleScopes(
   return undefined;
 }
 
-export function operatorSessionCap(client: GatewayClient | null, cfg: OpenClawConfig) {
+export function operatorSessionCap(
+  client: GatewayClient | null,
+  cfg: OpenClawConfig,
+): HelloOk["auth"]["sessionCap"] {
   return resolveOperatorRolePolicy(client, cfg)?.sessions.others;
 }
 
