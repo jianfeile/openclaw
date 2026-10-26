@@ -36,7 +36,7 @@ import {
   createChatTerminalObserver,
   createIdempotentCleanup,
   createFreshSession,
-  createLocalShellControlFloodPreload,
+  createLocalShellControlFloodOwner,
   lastOutputIndexAfter,
   readLocalShellControlFloodPids,
   registerIdempotentCleanup,
@@ -337,6 +337,7 @@ async function startLocalModeTui(
       tempDir: string;
       stateDir: string;
     }) => Promise<NodeJS.ProcessEnv> | NodeJS.ProcessEnv;
+    nativeProcessOwner?: (params: { tempDir: string }) => Promise<string> | string;
   } = {},
 ) {
   const replyText = opts.replyText ?? "LOCAL_PTY_RESPONSE";
@@ -391,7 +392,9 @@ async function startLocalModeTui(
 
     run = await startRuntimePty(
       process.execPath,
-      await buildTuiProcessArgs(opts.cliArgs ?? ["tui", "--local"]),
+      await buildTuiProcessArgs(opts.cliArgs ?? ["tui", "--local"], {
+        nativeProcessOwner: await opts.nativeProcessOwner?.({ tempDir }),
+      }),
       {
         cwd: process.cwd(),
         env,
@@ -1007,16 +1010,11 @@ describe("TUI PTY real backends", () => {
       let rolePidPath = "";
       const trackedPids: number[] = [];
       const fixture = await startLocalModeTui(onTestFinished, {
-        prepareEnv: async ({ env, tempDir }) => {
-          const preloadPath = path.join(tempDir, "control-flood.cjs");
+        prepareEnv: ({ env, tempDir }) => {
           rolePidPath = path.join(tempDir, "control-flood-pids.txt");
-          await writeFile(preloadPath, createLocalShellControlFloodPreload(), "utf8");
-          return {
-            ...env,
-            NODE_OPTIONS: `${env.NODE_OPTIONS ?? ""} --require=${preloadPath}`.trim(),
-            OPENCLAW_CONTROL_PROBE_PATH: rolePidPath,
-          };
+          return { ...env, OPENCLAW_CONTROL_PROBE_PATH: rolePidPath };
         },
+        nativeProcessOwner: ({ tempDir }) => createLocalShellControlFloodOwner(tempDir),
       });
       const commandPath = path.join(fixture.stateDir, "control-flood-command.cjs");
       const commandPidPath = path.join(fixture.stateDir, "control-flood-command-pids.txt");
