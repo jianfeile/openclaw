@@ -17,6 +17,10 @@ import type { SessionEntryCommitContext } from "./session-entry-commit-context.j
 import type { SessionOwnerAssignment } from "./session-entry-provenance.js";
 import type { CapturedSessionEntryReadSource } from "./session-entry-read-source.types.js";
 import type { SessionEntryProjection } from "./session-entry-snapshot-values.js";
+import type {
+  PreparedSessionMentionInvitation,
+  SessionMentionInvitation,
+} from "./session-mention-invitation.js";
 import type { SessionSourceAssertion } from "./session-source-authority.js";
 import type { SessionTranscriptContextVersion } from "./session-transcript-context-version.types.js";
 import type {
@@ -313,6 +317,8 @@ export type SessionTranscriptVisibleMessageDeltaResult = SessionTranscriptDeltaR
 >;
 
 export type TranscriptMessageAppendOptions<TMessage> = {
+  /** Private human-input effect, prepared independently of persisted mention annotations. */
+  mentionInvitation?: SessionMentionInvitation;
   /** Detached preparation; fresh commit compares the exact transcript version before insertion. */
   preparation?: {
     prepareMessage?: (message: TMessage) => Promise<TMessage | undefined>;
@@ -419,6 +425,7 @@ export type SessionTranscriptTurnMessageAppend = TranscriptMessageAppendOptions<
     TranscriptMessageAppendOptions<unknown>,
     "prepareMessageAfterIdempotencyCheck" | "beforeFreshMessageCommit"
   > & {
+    prepareMentionInvitation?: (message: unknown) => PreparedSessionMentionInvitation | undefined;
     /** Requires expectedSessionId and one message without transaction predicates; awaited after duplicate detection. */
     prepareMessageAfterIdempotencyCheckAsync?: (message: unknown) => Promise<unknown>;
   };

@@ -48,6 +48,7 @@ import {
   runWithSessionActorStorage,
 } from "./session-actor-storage-binding.js";
 import { getSessionInputActor } from "./session-input-actor.js";
+import type { PreparedSessionMentionInvitation } from "./session-mention-invitation.js";
 import {
   withCurrentPendingInputAuthority,
   type SessionPendingInputAuthority,
@@ -75,6 +76,22 @@ export type { SessionPendingInputReceipt } from "./session-pending-input-receipt
 
 const receiptOwners = new WeakMap<SessionPendingInputReceipt, SessionPendingInputOwner>();
 const withdrawnOwners = new WeakSet<SessionPendingInputOwner>();
+
+/** Bind authority to the private accepted bytes, never a mutable receipt or imported transcript. */
+export function bindSessionPendingInputMentionInvitation(
+  receipt: SessionPendingInputReceipt,
+  prepare: (message: PersistedUserTurnMessage) => PreparedSessionMentionInvitation | undefined,
+): void {
+  const owner = receiptOwners.get(receipt);
+  if (!owner || owner.consumed || owner.mentionInvitation) {
+    return;
+  }
+  const prepared = prepare(parseSessionPendingInputMessage(owner.messageJson));
+  if (prepared) {
+    owner.mentionInvitation = structuredClone(prepared.invitation);
+    owner.assertMentionInvitationCurrent = prepared.assertCurrent;
+  }
+}
 
 /** The private accepted bytes survive mutable receipt projections and replay preparation. */
 export function readSessionPendingInputRequesterOrigin(

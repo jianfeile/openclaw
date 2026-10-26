@@ -34,6 +34,11 @@ import {
   appendTranscriptEventInTransaction,
   sanitizeTranscriptMessageForStorage,
 } from "./session-accessor.sqlite-transcript-store.js";
+import {
+  applySessionMentionInvitationsInTransaction,
+  type SessionMentionInvitationCommit,
+  type PreparedSessionMentionInvitation,
+} from "./session-mention-invitation.js";
 import { SqliteTranscriptMutationConflictError } from "./session-mutation-conflict-error.js";
 import {
   readTranscriptAppendPostimage,
@@ -48,6 +53,7 @@ export type { PreparedTranscriptMessageAppend } from "./session-accessor.sqlite-
 
 type TranscriptMessageCommit<TMessage> = {
   result: TranscriptMessageAppendResult<TMessage>;
+  membershipChanged?: boolean;
   visibleTailEntryId?: string;
 };
 
@@ -147,11 +153,13 @@ export function appendTranscriptMessageInTransaction<TMessage>(
   database: OpenClawAgentDatabase,
   resolved: ResolvedTranscriptScope,
   options: TranscriptMessageAppendOptions<TMessage> & {
+    prepareMentionInvitation?: (message: unknown) => PreparedSessionMentionInvitation | undefined;
     appendMode?: "side";
     supersedesEntryId?: string;
   },
   preparedMessage?: PreparedTranscriptMessageAppend<TMessage>,
   projection?: { scheduleProjectionReconcile?: boolean; onProjectionReconcileNeeded?: () => void },
+  deferMentionInvitations?: (commit: SessionMentionInvitationCommit) => void,
 ): TranscriptMessageCommit<TMessage> | undefined {
   const pending = resolveSessionPendingInputAppend(database, resolved, options.message);
   // Accepted input already owns its hook and normalization decision. A host-prepared
@@ -263,6 +271,10 @@ export function appendTranscriptMessageInTransaction<TMessage>(
     pending && !pending.alreadyPromoted ? pending.inputId : (options.eventId ?? randomUUID());
   const now = options.now ?? Date.now();
   const finalMessage = pending ? prepared : serializeForStorage(prepared);
+  const preparedInvitation = !pending
+    ? options.prepareMentionInvitation?.(finalMessage)
+    : undefined;
+  preparedInvitation?.assertCurrent();
   if (!pending) {
     // Accepted custody and replay retain their original decision. Fresh input
     // must still belong to its captured owner before any transcript write.
@@ -320,6 +332,32 @@ export function appendTranscriptMessageInTransaction<TMessage>(
     storagePreparation?.persistedMessage ??
     // SAFETY: Receipt custody comes from this event's exact committed JSON after storage normalization.
     (JSON.parse(appended) as typeof event).message;
+  const invitations = pending
+    ? pending.mentionInvitations
+    : options.mentionInvitation
+      ? [options.mentionInvitation]
+      : preparedInvitation
+        ? [preparedInvitation.invitation]
+        : undefined;
+  let membershipChanged = false;
+  if (invitations?.length) {
+    // Capture this append before a first-session batch advances its raw tail.
+    // Raw identity remains available while the display projection is dirty.
+    const { generation, rawSeq } = readTranscriptContextVersionInTransaction(
+      database,
+      resolved.sessionId,
+    );
+    if (generation === null || rawSeq === null) {
+      throw new Error("Mention invitation lost its original transcript identity");
+    }
+    const commit = { message: persistedMessage, invitations, source: { generation, rawSeq } };
+    if (deferMentionInvitations) {
+      // The first-turn owner creates the session row later in this same transaction.
+      deferMentionInvitations(commit);
+    } else {
+      membershipChanged = applySessionMentionInvitationsInTransaction(database, resolved, commit);
+    }
+  }
   const metadata = readTranscriptMessageAppendMetadataInTransaction({
     database,
     resolved,
@@ -343,6 +381,7 @@ export function appendTranscriptMessageInTransaction<TMessage>(
         message: persistedMessage,
         messageId,
       },
+      membershipChanged,
       ...(metadata.visibleTailEntryId !== undefined
         ? { visibleTailEntryId: metadata.visibleTailEntryId }
         : {}),

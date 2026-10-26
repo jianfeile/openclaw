@@ -31,6 +31,7 @@ import {
   isFinalInputCompletion,
   parseSessionPendingInputMessage,
 } from "./session-pending-input-value.js";
+import { snapshotSessionPendingInputOwner } from "./session-pending-input-worker-facts.js";
 import type {
   SessionPendingInputRow,
   SessionPendingInputWorkerFacts,
@@ -61,24 +62,10 @@ export function captureSessionPendingInputWorkerCustody() {
   if (!owner) {
     return undefined;
   }
-  const copy = (current: SessionPendingInputOwner): SessionPendingInputWorkerFacts => ({
-    agentId: current.agentId,
-    databaseAgentId: current.databaseAgentId,
-    inputId: current.inputId,
-    transcriptInputId: current.transcriptInputId,
-    sessionId: current.sessionId,
-    sessionKey: current.sessionKey,
-    databasePath: current.workerDatabasePath,
-    idempotencyKey: current.idempotencyKey,
-    lifecycleGeneration: current.lifecycleGeneration,
-    messageJson: current.messageJson,
-    preparedAuthority:
-      current.authority || current.sources?.some((source) => source.authority) ? true : undefined,
-    ...(current.sources ? { sources: current.sources.map(copy) } : {}),
-  });
+
   const relocation = owners.relocation.getStore();
   return {
-    facts: copy(owner),
+    facts: snapshotSessionPendingInputOwner(owner),
     ...(relocation?.owner === owner ? { relocation: relocation.sourceInputId } : {}),
     assertCurrent: (facts?: SessionPendingInputAuthorityFacts, assertSourceCurrent?: () => void) =>
       assertPendingInputOwnerCurrent(owner, facts, assertSourceCurrent),
@@ -231,6 +218,9 @@ function assertPendingInputOwnerCurrent(
     owner.authority.withPreparedCurrent(facts, owner.assertCurrent, assertSourceCurrent);
   } else {
     owner.assertCurrent();
+  }
+  if (!owner.consumed) {
+    owner.assertMentionInvitationCurrent?.();
   }
 }
 
@@ -628,6 +618,13 @@ export function resolveSessionPendingInputAppend(
       inputId: transcriptInputId,
       message: parseSessionPendingInputMessage(owner.messageJson),
       alreadyPromoted,
+      ...(!alreadyPromoted
+        ? {
+            mentionInvitations: owner.sources.flatMap((source) =>
+              source.mentionInvitation ? [source.mentionInvitation] : [],
+            ),
+          }
+        : {}),
       sourceInputIds: sources.map((source) => source.input_id),
       ...(alreadyPromoted && stageRelocation ? { stageRelocation } : {}),
     };
@@ -641,6 +638,7 @@ export function resolveSessionPendingInputAppend(
     inputId: transcriptInputId,
     message: parseSessionPendingInputMessage(row?.message_json ?? owner.messageJson),
     alreadyPromoted: !row,
+    ...(row && owner.mentionInvitation ? { mentionInvitations: [owner.mentionInvitation] } : {}),
     ...(!row && stageRelocation ? { stageRelocation } : {}),
   };
 }
