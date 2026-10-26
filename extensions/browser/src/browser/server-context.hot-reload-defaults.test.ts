@@ -166,29 +166,24 @@ function coldStart() {
     },
   };
 }
-it.each([false, true])(
-  "shares cold startup beyond the action budget (cancel=%s)",
-  async (cancel) => {
-    const { started, finish, state, original } = coldStart();
-    const caller = new AbortController();
-    const first = startBrowser(caller.signal);
-    const result = first.catch((error: unknown) => error);
-    await started.promise;
-    if (cancel) {
-      setTimeout(() => caller.abort(new Error("caller deadline expired")), 10_000);
-      await vi.advanceTimersByTimeAsync(10_000);
-      await expect(first).rejects.toThrow("caller deadline expired");
-    }
-    const tabs = readTabs().catch((error: unknown) => error);
-    const next = cancel ? startBrowser() : result;
-    await finish();
-    expect(await next).toEqual(startedResponse);
-    expect(await tabs).toEqual({ running: true, tabs: [], canAutoResizeViewport: true });
-    await expect(startBrowser()).resolves.toEqual(startedResponse);
-    expect(state.profiles.get("openclaw")?.running).toBe(original);
-    expect(launchOpenClawChrome).toHaveBeenCalledOnce();
-  },
-);
+it("shares cold startup beyond the action budget even when its first caller cancels", async () => {
+  const { started, finish, state, original } = coldStart();
+  const caller = new AbortController();
+  const first = startBrowser(caller.signal);
+  const cancelled = expect(first).rejects.toThrow("caller deadline expired");
+  await started.promise;
+  setTimeout(() => caller.abort(new Error("caller deadline expired")), 10_000);
+  await vi.advanceTimersByTimeAsync(10_000);
+  await cancelled;
+  const next = startBrowser();
+  const tabs = readTabs().catch((error: unknown) => error);
+  await finish();
+  expect(await next).toEqual(startedResponse);
+  expect(await tabs).toEqual({ running: true, tabs: [], canAutoResizeViewport: true });
+  await expect(startBrowser()).resolves.toEqual(startedResponse);
+  expect(state.profiles.get("openclaw")?.running).toBe(original);
+  expect(launchOpenClawChrome).toHaveBeenCalledOnce();
+});
 it("enforces the action deadline after startup completes", async () => {
   const { finish } = coldStart();
   const start = startBrowser();

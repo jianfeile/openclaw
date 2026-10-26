@@ -6,11 +6,9 @@ import {
   makeBrowserServerState,
   mockLaunchedChrome,
 } from "./server-context.test-harness.js";
-import * as serverLifecycle from "./server-lifecycle.js";
 
 const mocks = vi.hoisted(() => ({
   chunksRemoved: false,
-  relayRemoved: false,
   disposeRelay: vi.fn(),
   handlers: new Set<(reason: unknown) => boolean>(),
   closeChromeMcpSession: vi.fn(async () => false),
@@ -27,7 +25,7 @@ vi.mock("openclaw/plugin-sdk/runtime-env", async (importOriginal) => ({
 }));
 // mock-isolation: emulate removed installation chunks without loading a real Gateway relay.
 vi.mock("./extension-relay/gateway-relay-route.js", () => {
-  if (mocks.relayRemoved) {
+  if (mocks.chunksRemoved) {
     throw new Error("installed Gateway extension relay chunk was removed");
   }
   return { disposeGatewayExtensionRelay: mocks.disposeRelay };
@@ -67,18 +65,17 @@ beforeEach(() => {
   mocks.handlers.clear();
   vi.clearAllMocks();
   mocks.chunksRemoved = false;
-  mocks.relayRemoved = false;
 });
 afterEach(() => {
-  vi.restoreAllMocks();
   mocks.chunksRemoved = false;
-  mocks.relayRemoved = false;
 });
 
-const start = () =>
-  createBrowserRuntimeState({ resolved: makeBrowserServerState().resolved, port: 18791 });
-const stop = (current: Awaited<ReturnType<typeof start>>, clearState = vi.fn()) =>
-  stopBrowserRuntime({ current, clearState, onWarn: vi.fn() });
+const start = (options?: Parameters<typeof makeBrowserServerState>[0]) =>
+  createBrowserRuntimeState({ resolved: makeBrowserServerState(options).resolved, port: 18791 });
+const stop = async (current: Awaited<ReturnType<typeof start>>, clearState = vi.fn()) => {
+  await stopBrowserRuntime({ current, clearState, onWarn: vi.fn() });
+  expect(mocks.handlers.size).toBe(0);
+};
 const protocolError = (method: string, message = "No dialog is showing") =>
   Object.assign(new Error(message), { method });
 
@@ -86,13 +83,12 @@ it.each([false, true])(
   "closes after installation rotation (relay acquired: %s)",
   async (acquired) => {
     const profile = makeBrowserProfile({ name: "user", driver: "existing-session" });
-    const state = makeBrowserServerState({ profile });
+    const state = await start({ profile });
     getOrCreateProfileRuntime(state, profile);
     if (acquired) {
       await getGatewayExtensionRelayModule();
     }
     mocks.chunksRemoved = true;
-    mocks.relayRemoved = true;
     const clearState = vi.fn();
     await stop(state, clearState);
     expect(clearState).toHaveBeenCalledOnce();
@@ -121,26 +117,16 @@ it.each([
   await stop(state);
 });
 
-it("retains the rejection handler through profile drain and removes it at shutdown", async () => {
-  vi.spyOn(serverLifecycle, "stopKnownBrowserProfiles").mockImplementationOnce(async () => {
-    expect(mocks.handlers.size).toBe(1);
-  });
-  const state = await start();
-  expect(registerUnhandledRejectionHandler).toHaveBeenCalledOnce();
-  expect(mocks.handlers.size).toBe(1);
-  await stop(state);
-  expect([...mocks.handlers]).toEqual([]);
-});
-
 it("invalidates every deferred start before draining late children and clearing state", async () => {
   const profiles = ["alpha", "beta"].map((name, i) =>
     makeBrowserProfile({ name, cdpPort: 18_801 + i }),
   );
-  const state = makeBrowserServerState({
+  const state = await start({
     resolvedOverrides: {
       profiles: Object.fromEntries(profiles.map((profile) => [profile.name, profile])),
     },
   });
+  expect(registerUnhandledRejectionHandler).toHaveBeenCalledOnce();
   const runtimes = profiles.map((profile) => getOrCreateProfileRuntime(state, profile));
   const launches = profiles.map(() => createDeferred<RunningChrome>());
   const entered = profiles.map(() => createDeferred<AbortSignal>());
@@ -161,6 +147,7 @@ it("invalidates every deferred start before draining late children and clearing 
   const startSignals = await Promise.all(entered.map((gate) => gate.promise));
   const children = [1, 2].map((pid) => mockLaunchedChrome(vi.fn(), pid));
   const clearState = vi.fn(() => {
+    expect(mocks.handlers.size).toBe(1);
     for (const runtime of runtimes) {
       expect({
         running: runtime.running,
@@ -181,6 +168,7 @@ it("invalidates every deferred start before draining late children and clearing 
     }),
   ).toThrow("Browser runtime is stopping");
   expect(clearState).not.toHaveBeenCalled();
+  expect(mocks.handlers.size).toBe(1);
 
   launches.forEach((launch, index) => launch.resolve(children[index]!));
   await Promise.all(
@@ -191,4 +179,5 @@ it("invalidates every deferred start before draining late children and clearing 
   expect(mocks.stopOpenClawChrome.mock.calls.map(([running]) => running)).toEqual(children);
   expect(mocks.closeChromeMcpSession).not.toHaveBeenCalled();
   expect(clearState).toHaveBeenCalledTimes(1);
+  expect([...mocks.handlers]).toEqual([]);
 });
