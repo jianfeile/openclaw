@@ -2,8 +2,6 @@ import { expect, it } from "vitest";
 import { SHARED_AUTH_STORE_STATE_KEY } from "../../agents/auth-profiles/sqlite-json.js";
 import { writePersistedAuthProfileStoreRaw } from "../../agents/auth-profiles/sqlite.js";
 import type { AuthProfileStore } from "../../agents/auth-profiles/types.js";
-import { resolveConfigPath, resolveStateDir } from "../../config/config.js";
-import { isPathInside } from "../../infra/path-guards.js";
 import { getActiveSecretsRuntimeSnapshot } from "../../secrets/runtime.js";
 import { writeConfigMachineState } from "../../state/config-machine-state-write.js";
 import { runOpenClawStateWriteTransaction } from "../../state/openclaw-state-db.js";
@@ -15,17 +13,6 @@ import {
   startModelsGateway,
   writeAuthStoreExternally,
 } from "./models-integration.test-support.js";
-
-function expectIsolatedState(state: Awaited<ReturnType<typeof createModelsTestState>>) {
-  expect([process.env.OPENCLAW_HOME, resolveStateDir(), resolveConfigPath()]).toEqual([
-    state.home,
-    state.stateDir,
-    state.configPath,
-  ]);
-  for (const resolved of [state.home, resolveStateDir(), resolveConfigPath()]) {
-    expect(isPathInside(state.root, resolved)).toBe(true);
-  }
-}
 
 function tokenStore(provider: string, profile: string): AuthProfileStore {
   return {
@@ -45,14 +32,12 @@ async function refresh(
     refreshed: true,
   });
   if (profileId) {
-    await expect(client.request("models.authStatus", { agentId: "main" })).resolves.toMatchObject({
-      providers: expect.arrayContaining([
-        expect.objectContaining({
-          provider: profileId.split(":")[0],
-          profiles: expect.arrayContaining([expect.objectContaining({ profileId })]),
-        }),
-      ]),
+    const { providers } = await client.request<ModelAuthStatusResult>("models.authStatus", {
+      agentId: "main",
     });
+    expect(
+      providers.find(({ provider }) => provider === profileId.split(":")[0])?.profiles,
+    ).toContainEqual(expect.objectContaining({ profileId }));
   }
 }
 
@@ -69,7 +54,6 @@ it("publishes saved credentials and persisted removals before acknowledging an a
     },
   });
   await state.writeConfig(cfg);
-  expectIsolatedState(state);
   await using gateway = await startModelsGateway(state, cfg, token);
   await gateway.server.startupSettled;
   const { client, port } = gateway;

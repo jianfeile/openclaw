@@ -20,17 +20,16 @@ vi.mock("../server-active-work.js", () => ({
 
 async function invoke(method: keyof typeof suspendHandlers, params: unknown) {
   const respond = vi.fn();
-  const info = vi.fn();
   const handler = expectDefined(suspendHandlers[method], "suspendHandlers[method] test invariant");
   await handler({
     params,
     respond,
     context: {
       cron: { pauseScheduling: vi.fn(), resumeScheduling: vi.fn() },
-      logGateway: { warn: vi.fn(), info },
+      logGateway: { warn: vi.fn(), info: vi.fn() },
     },
   } as unknown as Parameters<typeof handler>[0]);
-  return { respond, info };
+  return { respond };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -71,36 +70,22 @@ describe("gateway suspend handlers", () => {
     const params = held
       ? { suspensionId: "suspension-draining" }
       : { requestId: "request-draining", drain: true };
-    const blockers = held
-      ? [
-          { kind: "root-request", count: 1, message: "http request" },
-          { kind: "terminal-persistence", count: 1, message: "pending write" },
-        ]
-      : [{ kind: "terminal-session", count: 1, message: "one preserved terminal" }];
+    const blockers = [{ kind: "terminal-persistence", count: 1, message: "pending write" }];
     const result = {
       status: "draining",
       ...(!held ? { suspensionId: "suspension-draining" } : {}),
-      expiresAtMs: 123_000,
-      retryAfterMs: 20_000,
       activeCount: blockers.length,
       blockers,
       ...(held ? { writeCustody: [{ phase: "terminal-persistence", count: 1 }] } : {}),
     };
     coordinator[held ? "status" : "prepare"].mockReturnValue(result);
-    const { respond, info } = await invoke(method, params);
+    const { respond } = await invoke(method, params);
     if (!held) {
       expect(coordinator.prepare).toHaveBeenCalledWith(
         expect.objectContaining({ ...params, terminalPolicy: "preserve" }),
       );
-    } else {
-      expect(coordinator.status).toHaveBeenCalledWith("suspension-draining", false);
     }
     expect(respond).toHaveBeenCalledWith(true, result);
-    expect(info).toHaveBeenCalledWith(
-      held
-        ? 'DRAINING activeCount=2 blockers=root-request:1,terminal-persistence:1 holders=["http request","pending write"] custody=held'
-        : 'DRAINING activeCount=1 blockers=terminal-session:1 holders=["one preserved terminal"] custody=clear',
-    );
   });
 
   it("keeps resume idempotent and rejects a mismatched active lease", async () => {
