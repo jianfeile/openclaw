@@ -6,6 +6,7 @@ import {
   derivePetMood,
   moodToState,
   reactToMoodChange,
+  resolvePetSkinUrl,
 } from "./pet-state";
 
 const base = {
@@ -77,5 +78,24 @@ describe("reactToMoodChange", () => {
       state: "surprised",
       holdMs: PET_WAKE_MS,
     });
+  });
+});
+
+describe("resolvePetSkinUrl", () => {
+  it("returns null for the built-in artwork", () => {
+    expect(resolvePetSkinUrl("", "idle")).toBeNull();
+    expect(resolvePetSkinUrl("   ", "happy")).toBeNull();
+  });
+
+  it("fills a {state} template", () => {
+    expect(resolvePetSkinUrl("pet/{state}.png", "think")).toBe("pet/think.png");
+    expect(resolvePetSkinUrl("https://example.com/lulu/{state}.gif", "sleep")).toBe(
+      "https://example.com/lulu/sleep.gif",
+    );
+  });
+
+  it("treats a plain template as a folder of <state>.png files", () => {
+    expect(resolvePetSkinUrl("pet", "idle")).toBe("pet/idle.png");
+    expect(resolvePetSkinUrl("/skins/lulu/", "love")).toBe("/skins/lulu/love.png");
   });
 });

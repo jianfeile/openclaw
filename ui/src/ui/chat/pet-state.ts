@@ -17,6 +17,18 @@ export type PetMoodInput = {
   error: string | null;
 };
 
+/**
+ * Builds the image URL for a custom skin. The template either contains
+ * `{state}` (for example `pet/{state}.png`) or names a folder that holds
+ * `<state>.png` files. An empty template means the built-in artwork.
+ */
+export function resolvePetSkinUrl(template: string, state: PetState): string | null {
+  const trimmed = template.trim();
+  if (!trimmed) return null;
+  if (trimmed.includes("{state}")) return trimmed.split("{state}").join(state);
+  return `${trimmed.replace(/\/+$/, "")}/${state}.png`;
+}
+
 export const PET_HAPPY_AFTER_REPLY_MS = 2400;
 export const PET_LOVE_MS = 2000;
 export const PET_WAKE_MS = 900;

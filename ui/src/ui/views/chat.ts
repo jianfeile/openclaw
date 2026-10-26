@@ -50,6 +50,8 @@ export type ChatProps = {
   focusMode: boolean;
   // Chat pet (Nuo Nuo) beside the composer; defaults to shown
   pet?: boolean;
+  // Image URL template for a custom pet skin ("" = built-in artwork)
+  petSkin?: string;
   // Sidebar state
   sidebarOpen?: boolean;
   sidebarContent?: string | null;
@@ -343,7 +345,11 @@ export function renderChat(props: ChatProps) {
         ${renderAttachmentPreview(props)}
         <div class="chat-compose__row">
           ${showPet
-            ? html`<chat-pet class="chat-compose__pet" .mood=${petMood}></chat-pet>`
+            ? html`<chat-pet
+                class="chat-compose__pet"
+                .mood=${petMood}
+                .skin=${props.petSkin ?? ""}
+              ></chat-pet>`
             : nothing}
           <label class="field chat-compose__field">
             <span>Message</span>

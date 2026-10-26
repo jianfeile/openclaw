@@ -11,6 +11,7 @@ export type UiSettings = {
   chatFocusMode: boolean;
   chatShowThinking: boolean;
   chatPet: boolean; // Show the chat pet (Nuo Nuo) beside the composer
+  chatPetSkin: string; // Image URL template for a custom pet skin ("" = built-in artwork)
   splitRatio: number; // Sidebar split ratio (0.4 to 0.7, default 0.6)
   navCollapsed: boolean; // Collapsible sidebar state
   navGroupsCollapsed: Record<string, boolean>; // Which nav groups are collapsed
@@ -31,6 +32,7 @@ export function loadSettings(): UiSettings {
     chatFocusMode: false,
     chatShowThinking: true,
     chatPet: true,
+    chatPetSkin: "",
     splitRatio: 0.6,
     navCollapsed: false,
     navGroupsCollapsed: {},
@@ -73,6 +75,10 @@ export function loadSettings(): UiSettings {
           : defaults.chatShowThinking,
       chatPet:
         typeof parsed.chatPet === "boolean" ? parsed.chatPet : defaults.chatPet,
+      chatPetSkin:
+        typeof parsed.chatPetSkin === "string"
+          ? parsed.chatPetSkin.trim()
+          : defaults.chatPetSkin,
       splitRatio:
         typeof parsed.splitRatio === "number" &&
         parsed.splitRatio >= 0.4 &&

@@ -111,3 +111,11 @@ describe("chat pet", () => {
     expect(container.querySelector("chat-pet")).toBeNull();
   });
 });
+
+describe("chat pet skin", () => {
+  it("passes the skin template through to the pet", () => {
+    const container = document.createElement("div");
+    render(renderChat(createProps({ petSkin: "pet/{state}.png" })), container);
+    expect(container.querySelector("chat-pet")?.skin).toBe("pet/{state}.png");
+  });
+});

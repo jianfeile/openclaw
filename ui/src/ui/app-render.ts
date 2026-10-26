@@ -32,6 +32,7 @@ import type {
 import type { ChatQueueItem, CronFormState } from "./ui-types";
 import { refreshChatAvatar } from "./app-chat";
 import { renderChat } from "./views/chat";
+import { normalizeBasePath } from "./navigation";
 import { renderConfig } from "./views/config";
 import { renderChannels } from "./views/channels";
 import { renderCron } from "./views/cron";
@@ -98,6 +99,14 @@ function resolveAssistantAvatarUrl(state: AppViewState): string | undefined {
   if (!candidate) return undefined;
   if (AVATAR_DATA_RE.test(candidate) || AVATAR_HTTP_RE.test(candidate)) return candidate;
   return identity?.avatarUrl;
+}
+
+/** Relative skin templates are served next to the UI, so prefix the base path. */
+function resolveChatPetSkin(state: AppViewState): string {
+  const raw = state.settings.chatPetSkin.trim();
+  if (!raw) return "";
+  if (/^(https?:|data:|blob:|\/)/i.test(raw)) return raw;
+  return `${normalizeBasePath(state.basePath)}/${raw}`;
 }
 
 export function renderApp(state: AppViewState) {
@@ -466,6 +475,7 @@ export function renderApp(state: AppViewState) {
               sessions: state.sessionsResult,
               focusMode: chatFocus,
               pet: state.onboarding ? false : state.settings.chatPet,
+              petSkin: resolveChatPetSkin(state),
               onRefresh: () => {
                 state.resetToolStream();
                 return Promise.all([loadChatHistory(state), refreshChatAvatar(state)]);

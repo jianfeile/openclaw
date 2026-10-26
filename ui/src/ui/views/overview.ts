@@ -166,6 +166,17 @@ export function renderOverview(props: OverviewProps) {
               }}
             />
           </label>
+          <label class="field">
+            <span>Chat Pet Skin (optional)</span>
+            <input
+              .value=${props.settings.chatPetSkin}
+              @input=${(e: Event) => {
+                const v = (e.target as HTMLInputElement).value;
+                props.onSettingsChange({ ...props.settings, chatPetSkin: v });
+              }}
+              placeholder="pet/{state}.png — empty keeps the built-in pet"
+            />
+          </label>
         </div>
         <div class="row" style="margin-top: 14px;">
           <button class="btn" @click=${() => props.onConnect()}>Connect</button>
