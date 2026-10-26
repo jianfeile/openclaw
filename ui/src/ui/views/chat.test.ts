@@ -94,3 +94,28 @@ describe("chat view", () => {
     expect(container.textContent).not.toContain("Stop");
   });
 });
+
+describe("chat pet", () => {
+  it("renders Nuo Nuo beside the composer with the derived mood", () => {
+    const container = document.createElement("div");
+    render(renderChat(createProps({ sending: true })), container);
+    const pet = container.querySelector("chat-pet");
+    expect(pet).not.toBeNull();
+    expect(pet?.mood).toBe("think");
+    expect(pet?.closest(".chat-compose__row")).not.toBeNull();
+  });
+
+  it("stays hidden when the pet setting is off", () => {
+    const container = document.createElement("div");
+    render(renderChat(createProps({ pet: false })), container);
+    expect(container.querySelector("chat-pet")).toBeNull();
+  });
+});
+
+describe("chat pet skin", () => {
+  it("passes the skin template through to the pet", () => {
+    const container = document.createElement("div");
+    render(renderChat(createProps({ petSkin: "pet/{state}.png" })), container);
+    expect(container.querySelector("chat-pet")?.skin).toBe("pet/{state}.png");
+  });
+});

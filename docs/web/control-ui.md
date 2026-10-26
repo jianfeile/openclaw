@@ -54,6 +54,8 @@ The onboarding wizard generates a gateway token by default, so paste it here on 
   - Click **Stop** (calls `chat.abort`)
   - Type `/stop` (or `stop|esc|abort|wait|exit|interrupt`) to abort out-of-band
   - `chat.abort` supports `{ sessionKey }` (no `runId`) to abort all active runs for that session
+- Chat pet: a small companion (Nuo Nuo) sits beside the composer and reacts to the chat state: it listens while you type, thinks while a reply is pending, bounces when the reply lands, and dozes off after a long idle. Toggle it with the paw button in the chat controls; the choice is stored with the other UI settings.
+  - Custom skin: set **Chat Pet Skin** on the Overview tab to an image URL template with `{state}` (for example `pet/{state}.png`, served from `ui/public/pet/` after `pnpm ui:build`, or any absolute URL). States are `idle`, `listen`, `think`, `happy`, `love`, `sleep`, `surprised`; a missing image falls back to the idle image, then to the built-in artwork. Only use images you have the rights to.
 
 ## Tailnet access (recommended)
 
