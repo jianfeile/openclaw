@@ -642,6 +642,8 @@ export function captureStateDatabaseAccess(databasePath: string) {
         );
         owner.lost.signal.throwIfAborted();
       }
+      // Read admission consumes this verified custody without another host filesystem probe.
+      readOwnerPaths.set(path.resolve(canonicalPath), owner);
       return assertCurrent;
     },
     // Native close can request its original schema custody after ordinary admission retires.

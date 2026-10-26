@@ -243,6 +243,36 @@ describe("Gateway state ownership", () => {
     },
   );
 
+  it("reuses worker-verified custody for the first retained read without host filesystem probes", async () => {
+    gatewayOwner(databasePath, root);
+    const access = captureStateDatabaseAccess(databasePath);
+    await access.prepareAccess();
+    const stat = vi.spyOn(fs, "lstatSync");
+    access.assertReadAllowed();
+    expect(stat).not.toHaveBeenCalled();
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "keeps worker-verified custody bound to the captured target after an alias changes",
+    async () => {
+      gatewayOwner(databasePath, root);
+      const otherRoot = directories.make("openclaw-state-owner-other-");
+      const otherPath = path.join(otherRoot, "state", "openclaw.sqlite");
+      schemaLease(otherPath);
+      const alias = path.join(directories.make("openclaw-state-owner-alias-"), "root");
+      fs.symlinkSync(root, alias);
+      const aliasPath = path.join(alias, "state", "openclaw.sqlite");
+      const access = captureStateDatabaseAccess(aliasPath);
+      fs.unlinkSync(alias);
+      fs.symlinkSync(otherRoot, alias);
+      await access.prepareAccess();
+      access.assertReadAllowed();
+      expect(() => assertStateDatabaseReadAllowed(aliasPath)).toThrow(
+        StateDatabaseMaintenanceScopeError,
+      );
+    },
+  );
+
   it("retains accepted nested maintenance after the root stops lending", async () => {
     const owner = gatewayOwner(databasePath, root);
     const accepted = retain(tryBorrowGatewayStateOwner(databasePath));
