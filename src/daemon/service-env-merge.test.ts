@@ -72,6 +72,8 @@ it.each([
               OPENCLAW_WINDOWS_TASK_NAME: "OpenClaw Gateway (saved)",
               OPENCLAW_LAUNCHD_LABEL: "ai.openclaw.saved",
               OPENCLAW_SYSTEMD_UNIT: "openclaw-gateway-saved.service",
+              OPENCLAW_SERVICE_MARKER: "openclaw",
+              OPENCLAW_SERVICE_KIND: "gateway",
               DBUS_SESSION_BUS_ADDRESS: "unix:path=/payload-bus",
               USER: "payload",
             },
