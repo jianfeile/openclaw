@@ -2,46 +2,42 @@ import { css, html, type TemplateResult } from "lit";
 import type { PetState } from "../chat/pet-state";
 
 /**
- * Nuo Nuo artwork: a mochi otter hugging its favourite pebble, drawn on a
- * 200x200 canvas. Every expression is in the markup; `data-state` on the
- * root picks which eyes/mouth/effects are visible and which animations run.
- * Generated from the character sheet (docs/assets/nuonuo/nuonuo.html); keep the two in sync.
+ * Nuo Nuo artwork: an original mochi capybara with a blade of grass in its
+ * mouth, drawn on a 200x200 canvas. Every expression is in the markup;
+ * `data-state` on the root picks which eyes/mouth/effects are visible and
+ * which animations run. Generated from the character sheet
+ * (docs/assets/nuonuo/nuonuo.html); keep the two in sync.
  */
 export function renderNuoNuo(state: PetState): TemplateResult {
   return html`<svg class="nn" data-state=${state} viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
 <defs><clipPath id="nn-body-clip"><path d="M100,60 C140,60 166,84 166,118 C166,154 138,173 100,173 C62,173 34,154 34,118 C34,84 60,60 100,60 Z"></path></clipPath></defs>
 <ellipse class="nn-shadow" cx="100" cy="181" rx="46" ry="5"></ellipse>
 <g class="nn-pet"><g class="nn-breath">
-    <path class="nn-tail" d="M148,144 C172,138 194,150 190,168 C188,178 176,176 168,170 C160,164 154,160 148,160 Z"></path>
-    <g class="nn-ear nn-ear-l"><circle class="nn-ear-out" cx="46" cy="80" r="10"></circle><circle class="nn-ear-in" cx="47" cy="80" r="5"></circle></g>
-    <g class="nn-ear nn-ear-r"><circle class="nn-ear-out" cx="154" cy="80" r="10"></circle><circle class="nn-ear-in" cx="153" cy="80" r="5"></circle></g>
+    <g class="nn-ear nn-ear-l"><circle class="nn-ear-out" cx="64" cy="66" r="8"></circle><circle class="nn-ear-in" cx="64" cy="67" r="4"></circle></g>
+    <g class="nn-ear nn-ear-r"><circle class="nn-ear-out" cx="136" cy="66" r="8"></circle><circle class="nn-ear-in" cx="136" cy="67" r="4"></circle></g>
     <path class="nn-body" d="M100,60 C140,60 166,84 166,118 C166,154 138,173 100,173 C62,173 34,154 34,118 C34,84 60,60 100,60 Z"></path>
-    <path class="nn-face-patch" clip-path="url(#nn-body-clip)" d="M56,114 C56,86 144,86 144,114 C144,152 128,170 100,170 C72,170 56,152 56,114 Z"></path>
+    <path class="nn-muzzle" clip-path="url(#nn-body-clip)" d="M60,116 C60,98 140,98 140,116 C140,146 126,158 100,158 C74,158 60,146 60,116 Z"></path>
     <g class="nn-face">
-      <g class="nn-blush"><ellipse cx="62" cy="128" rx="9" ry="5"></ellipse><ellipse cx="138" cy="128" rx="9" ry="5"></ellipse></g>
-      <path class="nn-whiskers" d="M70,120 l-12,-3 M70,126 l-12,2 M130,120 l12,-3 M130,126 l12,2"></path>
-      <g class="nn-eyes-pos"><g class="nn-eyes nn-v" data-on="idle listen think"><circle class="nn-eye" cx="78" cy="108" r="9"></circle><circle class="nn-hl" cx="75" cy="105" r="3.4"></circle><circle class="nn-hl" cx="81.5" cy="111" r="1.6"></circle><circle class="nn-eye" cx="122" cy="108" r="9"></circle><circle class="nn-hl" cx="119" cy="105" r="3.4"></circle><circle class="nn-hl" cx="125.5" cy="111" r="1.6"></circle></g></g>
-      <g class="nn-v" data-on="happy love"><path class="nn-line3" d="M69,111 C72,100 84,100 87,111"></path><path class="nn-line3" d="M113,111 C116,100 128,100 131,111"></path></g>
-      <g class="nn-v" data-on="sleep"><path class="nn-line3" d="M70,107 C73,113 83,113 86,107"></path><path class="nn-line3" d="M114,107 C117,113 127,113 130,107"></path></g>
-      <g class="nn-v" data-on="surprised"><circle class="nn-eye-ring" cx="78" cy="108" r="11"></circle><circle class="nn-eye" cx="78" cy="109" r="4.6"></circle><circle class="nn-hl" cx="76.4" cy="107.2" r="1.6"></circle><circle class="nn-eye-ring" cx="122" cy="108" r="11"></circle><circle class="nn-eye" cx="122" cy="109" r="4.6"></circle><circle class="nn-hl" cx="120.4" cy="107.2" r="1.6"></circle></g>
-      <ellipse class="nn-nose" cx="100" cy="120" rx="5.2" ry="3.8"></ellipse><circle class="nn-nose-hl" cx="98" cy="118.6" r="1.3"></circle>
-      <path class="nn-mouth nn-v" data-on="idle listen think sleep love" d="M94,126 C96,130 99,130 100,127 C101,130 104,130 106,126"></path>
-      <g class="nn-v" data-on="happy"><path class="nn-mouth-open" d="M90,125 C93,137 107,137 110,125 Z"></path><ellipse class="nn-tongue" cx="100" cy="132.5" rx="3.6" ry="2"></ellipse></g>
-      <ellipse class="nn-mouth-o nn-v" data-on="surprised" cx="100" cy="129" rx="3.2" ry="4"></ellipse>
+      <g class="nn-blush"><ellipse cx="54" cy="118" rx="8" ry="4.5"></ellipse><ellipse cx="146" cy="118" rx="8" ry="4.5"></ellipse></g>
+      <g class="nn-eyes-pos"><g class="nn-eyes nn-v" data-on="idle listen think"><circle class="nn-eye" cx="72" cy="97" r="7"></circle><circle class="nn-hl" cx="69.6" cy="94.6" r="2.6"></circle><circle class="nn-hl" cx="74.6" cy="99.4" r="1.2"></circle><circle class="nn-eye" cx="128" cy="97" r="7"></circle><circle class="nn-hl" cx="125.6" cy="94.6" r="2.6"></circle><circle class="nn-hl" cx="130.6" cy="99.4" r="1.2"></circle></g></g>
+      <g class="nn-v" data-on="happy love"><path class="nn-line3" d="M64,100 C67,91 77,91 80,100"></path><path class="nn-line3" d="M120,100 C123,91 133,91 136,100"></path></g>
+      <g class="nn-v" data-on="sleep"><path class="nn-line3" d="M65,97 C68,102 76,102 79,97"></path><path class="nn-line3" d="M121,97 C124,102 132,102 135,97"></path></g>
+      <g class="nn-v" data-on="surprised"><circle class="nn-eye-ring" cx="72" cy="97" r="9"></circle><circle class="nn-eye" cx="72" cy="98" r="3.8"></circle><circle class="nn-hl" cx="70.8" cy="96.6" r="1.3"></circle><circle class="nn-eye-ring" cx="128" cy="97" r="9"></circle><circle class="nn-eye" cx="128" cy="98" r="3.8"></circle><circle class="nn-hl" cx="126.8" cy="96.6" r="1.3"></circle></g>
+      <ellipse class="nn-nose" cx="100" cy="110" rx="9" ry="4.2"></ellipse><circle class="nn-nostril" cx="96.5" cy="110" r="1.2"></circle><circle class="nn-nostril" cx="103.5" cy="110" r="1.2"></circle>
+      <path class="nn-mouth nn-v" data-on="idle listen think sleep love" d="M90,124 C94,129 106,129 110,124"></path>
+      <g class="nn-v" data-on="happy"><path class="nn-mouth-open" d="M90,123 C93,135 107,135 110,123 Z"></path><ellipse class="nn-tongue" cx="100" cy="130.5" rx="3.6" ry="2"></ellipse></g>
+      <ellipse class="nn-mouth-o nn-v" data-on="surprised" cx="100" cy="126" rx="3.2" ry="4"></ellipse>
     </g>
     <g class="nn-feet"><ellipse cx="76" cy="170" rx="12" ry="6.5"></ellipse><ellipse cx="124" cy="170" rx="12" ry="6.5"></ellipse><path class="nn-toes" d="M71,166 v5 M81,166 v5 M119,166 v5 M129,166 v5"></path></g>
-    <g class="nn-hold">
-      <g class="nn-pebble nn-v" data-on="idle listen think love sleep surprised"><ellipse cx="100" cy="150" rx="12" ry="9.5"></ellipse><ellipse class="nn-pebble-hl" cx="95" cy="146" rx="3.5" ry="2"></ellipse></g>
-      <g class="nn-shell nn-v" data-on="happy"><path class="nn-shell-half" d="M88,152 C88,162 112,162 112,152 Z"></path><path class="nn-shell-ridge" d="M94,153 v6 M100,153 v7 M106,153 v6"></path><g transform="translate(88,152)"><path class="nn-shell-half nn-shell-lid" d="M0,0 C0,-10 24,-10 24,0 Z"></path></g><g class="nn-pearl"><circle cx="100" cy="147" r="4.2"></circle><circle class="nn-pearl-hl" cx="98.6" cy="145.6" r="1.2"></circle></g></g>
-      <g class="nn-paws"><ellipse cx="86" cy="156" rx="9" ry="6.5"></ellipse><ellipse cx="114" cy="156" rx="9" ry="6.5"></ellipse><path class="nn-toes" d="M82,153 v5 M90,153 v5 M110,153 v5 M118,153 v5"></path></g>
-    </g>
+    <g class="nn-grass"><path class="nn-grass-stalk" d="M109,125 C116,118 122,110 126,100"></path><path class="nn-grass-leaf" d="M120,110 C114,108 110,102 112,97 C118,98 121,104 120,110 Z"></path><path class="nn-grass-leaf" d="M126,100 C122,94 124,86 130,84 C134,90 131,98 126,100 Z"></path></g>
     <g class="nn-fx">
-      <g class="nn-v nn-fx-listen" data-on="listen"><path d="M168,60 a10,10 0 0 1 0,22"></path><path d="M175,53 a17,17 0 0 1 0,36"></path></g>
+      <g transform="translate(120,54)"><g class="nn-bird nn-v" data-on="happy love"><path class="nn-bird-tail" d="M7,-1 l6,-4 l-2,5 z"></path><ellipse class="nn-bird-body" cx="0" cy="0" rx="7" ry="5.5"></ellipse><path class="nn-bird-wing" d="M-1,-1 C3,-5 8,-3 6,2 Z"></path><circle class="nn-bird-body" cx="-5" cy="-5" r="4.5"></circle><path class="nn-bird-beak" d="M-9.5,-5 l-4.5,1.6 l4.5,1.6 z"></path><circle class="nn-bird-eye" cx="-6" cy="-6" r="0.9"></circle></g></g>
+      <g class="nn-v nn-fx-listen" data-on="listen"><path d="M162,56 a10,10 0 0 1 0,22"></path><path d="M169,49 a17,17 0 0 1 0,36"></path></g>
       <g class="nn-v" data-on="think"><circle class="nn-cloud" cx="170" cy="28" r="12"></circle><circle class="nn-cloud" cx="158" cy="42" r="3.2"></circle><circle class="nn-dot" cx="164" cy="28" r="2"></circle><circle class="nn-dot" cx="170" cy="28" r="2"></circle><circle class="nn-dot" cx="176" cy="28" r="2"></circle></g>
       <g class="nn-v" data-on="sleep"><text class="nn-zzz" x="156" y="64" font-size="12">z</text><text class="nn-zzz" x="166" y="50" font-size="16">z</text><text class="nn-zzz" x="178" y="34" font-size="21">z</text></g>
       <g class="nn-v" data-on="surprised"><g transform="translate(170,46) rotate(12)"><g class="nn-bang"><rect x="-3" y="-16" width="6" height="18" rx="3"></rect><circle cy="8" r="3.4"></circle></g></g></g>
-      <g class="nn-v" data-on="happy"><g transform="translate(34,62)"><path class="nn-spark" d="M0,-6 L1.6,-1.6 L6,0 L1.6,1.6 L0,6 L-1.6,1.6 L-6,0 L-1.6,-1.6 Z"></path></g><g transform="translate(170,62)"><path class="nn-spark" style="animation-delay:.45s" d="M0,-6 L1.6,-1.6 L6,0 L1.6,1.6 L0,6 L-1.6,1.6 L-6,0 L-1.6,-1.6 Z"></path></g><g transform="translate(28,126)"><path class="nn-spark" style="animation-delay:.9s" d="M0,-6 L1.6,-1.6 L6,0 L1.6,1.6 L0,6 L-1.6,1.6 L-6,0 L-1.6,-1.6 Z"></path></g></g>
-      <g class="nn-v" data-on="love"><g transform="translate(168,70)"><path class="nn-heart" d="M0,3 C-5,-3 -7,-7 -3.5,-8 C-1.5,-8.5 0,-6.5 0,-5.5 C0,-6.5 1.5,-8.5 3.5,-8 C7,-7 5,-3 0,3 Z"></path></g><g transform="translate(34,70)"><path class="nn-heart" style="animation-delay:.6s" d="M0,3 C-5,-3 -7,-7 -3.5,-8 C-1.5,-8.5 0,-6.5 0,-5.5 C0,-6.5 1.5,-8.5 3.5,-8 C7,-7 5,-3 0,3 Z"></path></g><g transform="translate(176,112)"><path class="nn-heart" style="animation-delay:1.2s" d="M0,3 C-5,-3 -7,-7 -3.5,-8 C-1.5,-8.5 0,-6.5 0,-5.5 C0,-6.5 1.5,-8.5 3.5,-8 C7,-7 5,-3 0,3 Z"></path></g></g>
+      <g class="nn-v" data-on="happy"><g transform="translate(34,62)"><path class="nn-spark" d="M0,-6 L1.6,-1.6 L6,0 L1.6,1.6 L0,6 L-1.6,1.6 L-6,0 L-1.6,-1.6 Z"></path></g><g transform="translate(170,70)"><path class="nn-spark" style="animation-delay:.45s" d="M0,-6 L1.6,-1.6 L6,0 L1.6,1.6 L0,6 L-1.6,1.6 L-6,0 L-1.6,-1.6 Z"></path></g><g transform="translate(28,126)"><path class="nn-spark" style="animation-delay:.9s" d="M0,-6 L1.6,-1.6 L6,0 L1.6,1.6 L0,6 L-1.6,1.6 L-6,0 L-1.6,-1.6 Z"></path></g></g>
+      <g class="nn-v" data-on="love"><g transform="translate(168,76)"><path class="nn-heart" d="M0,3 C-5,-3 -7,-7 -3.5,-8 C-1.5,-8.5 0,-6.5 0,-5.5 C0,-6.5 1.5,-8.5 3.5,-8 C7,-7 5,-3 0,3 Z"></path></g><g transform="translate(34,74)"><path class="nn-heart" style="animation-delay:.6s" d="M0,3 C-5,-3 -7,-7 -3.5,-8 C-1.5,-8.5 0,-6.5 0,-5.5 C0,-6.5 1.5,-8.5 3.5,-8 C7,-7 5,-3 0,3 Z"></path></g><g transform="translate(176,116)"><path class="nn-heart" style="animation-delay:1.2s" d="M0,3 C-5,-3 -7,-7 -3.5,-8 C-1.5,-8.5 0,-6.5 0,-5.5 C0,-6.5 1.5,-8.5 3.5,-8 C7,-7 5,-3 0,3 Z"></path></g></g>
     </g>
 </g></g>
 </svg>`;
@@ -80,30 +76,21 @@ export const nuoNuoStyles = css`
   }
   .nn .nn-body,
   .nn .nn-ear-out,
-  .nn .nn-feet ellipse,
-  .nn .nn-paws ellipse,
-  .nn .nn-tail {
-    fill: #c08f5f;
+  .nn .nn-feet ellipse {
+    fill: #c9a070;
     stroke: #4a3b32;
     stroke-width: 2.5;
     stroke-linejoin: round;
   }
-  .nn .nn-face-patch {
-    fill: #f7e8d0;
+  .nn .nn-muzzle {
+    fill: #e9d3ad;
   }
   .nn .nn-ear-in {
-    fill: #e9b9a3;
+    fill: #a67c52;
   }
   .nn .nn-blush ellipse {
     fill: #ffb4a8;
     opacity: 0.85;
-  }
-  .nn .nn-whiskers {
-    fill: none;
-    stroke: #4a3b32;
-    stroke-width: 1.4;
-    stroke-linecap: round;
-    opacity: 0.65;
   }
   .nn .nn-eye {
     fill: #3a2e2a;
@@ -125,9 +112,9 @@ export const nuoNuoStyles = css`
   .nn .nn-nose {
     fill: #3a2e2a;
   }
-  .nn .nn-nose-hl {
+  .nn .nn-nostril {
     fill: #fff;
-    opacity: 0.8;
+    opacity: 0.35;
   }
   .nn .nn-mouth {
     fill: none;
@@ -153,34 +140,43 @@ export const nuoNuoStyles = css`
     stroke-width: 1.6;
     stroke-linecap: round;
   }
-  .nn .nn-pebble ellipse {
-    fill: #aeb7c2;
-    stroke: #4a3b32;
+  .nn .nn-grass-stalk {
+    fill: none;
+    stroke: #4e9a4a;
     stroke-width: 2.2;
+    stroke-linecap: round;
   }
-  .nn .nn-pebble .nn-pebble-hl {
-    fill: #e6ebf0;
-    stroke: none;
-  }
-  .nn .nn-shell-half {
-    fill: #f4cdb4;
-    stroke: #b5775a;
-    stroke-width: 1.8;
+  .nn .nn-grass-leaf {
+    fill: #6fbf6a;
+    stroke: #4e9a4a;
+    stroke-width: 1.6;
     stroke-linejoin: round;
   }
-  .nn .nn-shell-ridge {
-    fill: none;
-    stroke: #d9a88c;
+  .nn .nn-bird-body {
+    fill: #f6c453;
+    stroke: #4a3b32;
+    stroke-width: 1.8;
+  }
+  .nn .nn-bird-wing {
+    fill: #e5b13c;
+    stroke: #4a3b32;
+    stroke-width: 1.4;
+    stroke-linejoin: round;
+  }
+  .nn .nn-bird-tail {
+    fill: #e5b13c;
+    stroke: #4a3b32;
+    stroke-width: 1.4;
+    stroke-linejoin: round;
+  }
+  .nn .nn-bird-beak {
+    fill: #f08a3c;
+    stroke: #4a3b32;
     stroke-width: 1.2;
+    stroke-linejoin: round;
   }
-  .nn .nn-pearl circle {
-    fill: #fff6e3;
-    stroke: #b5775a;
-    stroke-width: 1;
-  }
-  .nn .nn-pearl .nn-pearl-hl {
-    fill: #fff;
-    stroke: none;
+  .nn .nn-bird-eye {
+    fill: #3a2e2a;
   }
   .nn .nn-fx-listen path {
     fill: none;
@@ -259,15 +255,12 @@ export const nuoNuoStyles = css`
     transform-origin: 50% 50%;
     transition: transform 0.35s ease;
   }
-  .nn .nn-tail {
-    transform-origin: 0% 50%;
-    animation: nn-tail 2.6s ease-in-out infinite alternate;
+  .nn .nn-grass {
+    transform-origin: 0% 100%;
+    animation: nn-sway 3.2s ease-in-out infinite alternate;
+    transition: transform 0.5s ease;
   }
   .nn .nn-ear {
-    transform-origin: 50% 50%;
-    transition: transform 0.4s ease;
-  }
-  .nn .nn-paws {
     transform-origin: 50% 50%;
     transition: transform 0.4s ease;
   }
@@ -290,16 +283,10 @@ export const nuoNuoStyles = css`
   .nn[data-state="happy"] .nn-pet {
     animation: nn-bounce 0.75s cubic-bezier(0.4, 0.8, 0.5, 1.1) infinite;
   }
-  .nn[data-state="happy"] .nn-tail {
-    animation-duration: 0.5s;
-  }
-  .nn[data-state="happy"] .nn-shell-lid {
-    transform-origin: 0% 100%;
-    animation: nn-open 0.55s cubic-bezier(0.3, 1.4, 0.5, 1) both;
-  }
-  .nn[data-state="happy"] .nn-pearl {
-    transform-origin: 50% 50%;
-    animation: nn-pop 0.5s 0.15s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  .nn[data-state="happy"] .nn-bird,
+  .nn[data-state="love"] .nn-bird {
+    transform-origin: 50% 100%;
+    animation: nn-pop 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) both;
   }
   .nn[data-state="love"] .nn-pet {
     animation: nn-wiggle 1.1s ease-in-out infinite;
@@ -307,17 +294,12 @@ export const nuoNuoStyles = css`
   .nn[data-state="love"] .nn-blush {
     transform: scale(1.3);
   }
-  .nn[data-state="love"] .nn-paws {
-    transform: scale(0.92);
-  }
   .nn[data-state="sleep"] .nn-breath {
     animation-duration: 5.2s;
   }
-  .nn[data-state="sleep"] .nn-paws {
-    transform: translateY(-2px) scale(0.94);
-  }
-  .nn[data-state="sleep"] .nn-tail {
-    animation-duration: 5s;
+  .nn[data-state="sleep"] .nn-grass {
+    transform: rotate(40deg);
+    animation: none;
   }
   .nn[data-state="surprised"] .nn-pet {
     animation: nn-shake 0.35s ease-in-out 3;
@@ -325,7 +307,7 @@ export const nuoNuoStyles = css`
   .nn[data-state="surprised"] .nn-ear {
     transform: scale(1.18);
   }
-  .nn[data-state="surprised"] .nn-pebble {
+  .nn[data-state="surprised"] .nn-grass {
     animation: nn-hop 0.5s ease-out both;
   }
   .nn[data-state="surprised"] .nn-bang {
@@ -351,12 +333,12 @@ export const nuoNuoStyles = css`
       transform: scaleY(0.08);
     }
   }
-  @keyframes nn-tail {
+  @keyframes nn-sway {
     from {
-      transform: rotate(-7deg);
+      transform: rotate(-4deg);
     }
     to {
-      transform: rotate(7deg);
+      transform: rotate(4deg);
     }
   }
   @keyframes nn-ear-wiggle {
@@ -379,14 +361,6 @@ export const nuoNuoStyles = css`
     }
     100% {
       transform: translateY(0);
-    }
-  }
-  @keyframes nn-open {
-    from {
-      transform: rotate(0);
-    }
-    to {
-      transform: rotate(-55deg);
     }
   }
   @keyframes nn-tilt {
