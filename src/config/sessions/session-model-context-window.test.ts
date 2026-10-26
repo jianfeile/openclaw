@@ -67,7 +67,7 @@ it("preserves a newest tool turn using headroom when its final reply arrives", (
   const requests = [
     user(0, "older history"),
     user(1, "current request"),
-    assistantRequest(2, "", {
+    assistant(2, "", {
       content: [{ type: "toolCall", id: "call", name: "read", arguments: {} }],
       stopReason: "toolUse",
     }),

@@ -32,7 +32,6 @@ const aliasError = new WorkspaceAliasRepointedError({
 });
 
 beforeEach(() => {
-  vi.clearAllMocks();
   vi.stubEnv("OPENCLAW_ALLOW_SLOW_REPLY_TESTS", "1");
   vi.mocked(getRuntimeConfig).mockReset().mockReturnValue({});
   vi.mocked(ensureAgentWorkspace).mockReset();
@@ -53,10 +52,11 @@ it.each([
   }
 });
 
-it.each(["abort", "operator"] as const)(
-  "rejects queued %s revocation without workspace effects",
-  async (authority, { signal }) => {
-    vi.stubEnv("OPENCLAW_TEST_FAST", "0");
+it("rejects queued reply preparation after abort or operator revocation without workspace effects", async ({
+  signal,
+}) => {
+  vi.stubEnv("OPENCLAW_TEST_FAST", "0");
+  for (const authority of ["abort", "operator"] as const) {
     const state = await createOpenClawTestState({
       layout: "state-only",
       prefix: "reply-workspace-authority-",
@@ -88,6 +88,9 @@ it.each(["abort", "operator"] as const)(
                 assertCurrent: () => {},
               }),
             };
+      mocks.initSessionState.mockClear();
+      mocks.resolveReplyDirectives.mockClear();
+      vi.mocked(runPreparedReply).mockClear();
       const preparing = held.run(() =>
         getReplyFromConfig(buildGetReplyCtx(), options, {
           agents: { defaults: { workspace: state.workspaceDir } },
@@ -123,5 +126,5 @@ it.each(["abort", "operator"] as const)(
       await held.dispose();
       await state.cleanup();
     }
-  },
-);
+  }
+});

@@ -93,6 +93,10 @@ it.each([false, true])(
     expect(document.body).not.toContain("<script>alert(1)</script>");
     expect(document.setHeader).toHaveBeenCalledWith("Cache-Control", "private, no-store");
 
+    const anonymous = await request("/control/", false, false);
+    expect(anonymous.res.statusCode).toBe(200);
+    expect(anonymous.body).not.toContain(CONTROL_UI_BOOTSTRAP_CONFIG_ATTRIBUTE);
+    expect(anonymous.body).not.toContain("alert(1)");
     const denied = await request("/control/chat/main/topic", true, false);
     expect(denied.res.statusCode).toBe(200);
     expect(denied.body).not.toContain(CONTROL_UI_BOOTSTRAP_CONFIG_ATTRIBUTE);
