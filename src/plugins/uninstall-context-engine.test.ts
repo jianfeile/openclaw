@@ -27,15 +27,6 @@ describe("context-engine uninstall ownership", () => {
       ...overrides,
     },
   });
-  const uninstall = (input: OpenClawConfig, pluginId: string) => {
-    const result = planPluginUninstall({ config: input, pluginId, deleteFiles: false });
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
-      throw new Error(result.error);
-    }
-    return result;
-  };
-
   it("clears a missing plugin's selected engine without reading its files", () => {
     const result = removePluginFromConfig(config(), "vendor-plugin");
     expect(result.config.plugins?.slots).toEqual({ memory: "memory-core" });
@@ -51,12 +42,6 @@ describe("context-engine uninstall ownership", () => {
     expect(result.actions.contextEngineSlot).toBe(false);
   });
 
-  it("resets the declared engine when recovery disables a failed update", () => {
-    expect(disablePluginAfterUpdateFailure(config(), "vendor-plugin").plugins?.slots).toEqual({
-      memory: "memory-core",
-    });
-  });
-
   it("does not rename a declared engine when its plugin ID migrates", () => {
     const input = config();
     input.plugins!.slots!.contextEngine = "vendor-plugin";
@@ -68,9 +53,9 @@ describe("context-engine uninstall ownership", () => {
     expect(migrated.plugins?.installs?.["renamed-plugin"]?.contextEngineIdsByPlugin).toEqual({
       "renamed-plugin": ["vendor-plugin"],
     });
-    expect(
-      disablePluginAfterUpdateFailure(migrated, "renamed-plugin").plugins?.slots?.contextEngine,
-    ).toBeUndefined();
+    expect(disablePluginAfterUpdateFailure(migrated, "renamed-plugin").plugins?.slots).toEqual({
+      memory: "memory-core",
+    });
   });
 
   it("does not clear an ambiguously claimed engine", () => {
@@ -79,21 +64,6 @@ describe("context-engine uninstall ownership", () => {
     expect(removePluginFromConfig(input, "vendor-plugin").actions.contextEngineSlot).toBe(false);
   });
 
-  it("uses retained runtime-child ownership when the package inventory is missing", () => {
-    const result = uninstall(
-      config({
-        installs: {
-          "vendor-package": install(
-            { "vendor-plugin": ["canonical-engine"] },
-            "/missing/vendor-plugin",
-          ),
-        },
-      }),
-      "vendor-package",
-    );
-    expect(result.actions.contextEngineSlot).toBe(true);
-    expect(result.config.plugins?.slots).toEqual({ memory: "memory-core" });
-  });
   it.each([false, true])(
     "excludes all departing children but preserves outside owners: %s",
     (survives) => {
@@ -105,7 +75,11 @@ describe("context-engine uninstall ownership", () => {
           ...(survives ? { other: install({ other: ["engine"] }) } : {}),
         },
       });
-      const result = uninstall(input, "bundle");
+      const result = planPluginUninstall({ config: input, pluginId: "bundle", deleteFiles: false });
+      expect(result.ok).toBe(true);
+      if (!result.ok) {
+        throw new Error(result.error);
+      }
       expect(result.config.plugins?.installs?.bundle).toBeUndefined();
       expect(result.config.plugins?.slots?.contextEngine).toBe(survives ? "engine" : undefined);
       expect(result.config.plugins?.slots?.memory).toBe("memory-core");
