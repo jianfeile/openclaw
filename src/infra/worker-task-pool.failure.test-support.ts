@@ -6,6 +6,11 @@ import { setImmediate } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { WorkerTaskError, WorkerTaskPool } from "./worker-task-pool.js";
 
+const workerOptions = {
+  execArgv: [],
+  resourceLimits: { maxOldGenerationSizeMb: 16, maxYoungGenerationSizeMb: 4 },
+};
+
 for (const failure of ["exit", "oom"] as const) {
   const script = `
     import { parentPort } from "node:worker_threads";
@@ -22,10 +27,7 @@ for (const failure of ["exit", "oom"] as const) {
   `;
   const pool = new WorkerTaskPool<{ label: string }, unknown>({
     workerUrl: new URL(`data:text/javascript,${encodeURIComponent(script)}`),
-    workerOptions: {
-      execArgv: [],
-      resourceLimits: { maxOldGenerationSizeMb: 16, maxYoungGenerationSizeMb: 4 },
-    },
+    workerOptions,
     maxWorkers: 2,
     restartOnError: false,
   });
@@ -43,16 +45,14 @@ for (const failure of ["exit", "oom"] as const) {
     await pool.close();
     await setImmediate();
     for (const result of results) {
-      assert.equal(result.status, "rejected");
-      if (result.status === "rejected") {
-        assert.ok(result.reason instanceof WorkerTaskError);
-        assert.equal(result.reason.code, "unavailable");
-        assert.ok(
-          result.reason.message.includes(
-            failure === "exit" ? "worker exited with code 77" : "ERR_WORKER_OUT_OF_MEMORY",
-          ),
-        );
-      }
+      assert.ok(result.status === "rejected");
+      assert.ok(result.reason instanceof WorkerTaskError);
+      assert.equal(result.reason.code, "unavailable");
+      assert.ok(
+        result.reason.message.includes(
+          failure === "exit" ? "worker exited with code 77" : "ERR_WORKER_OUT_OF_MEMORY",
+        ),
+      );
     }
     assert.deepEqual(unhandled, []);
   } finally {
@@ -82,10 +82,7 @@ try {
   for (const kind of ["prepare-session", "private-input-secret"]) {
     const pool = new WorkerTaskPool<{ kind: string; content: string }, unknown>({
       workerUrl: pathToFileURL(workerPath),
-      workerOptions: {
-        execArgv: [],
-        resourceLimits: { maxOldGenerationSizeMb: 16, maxYoungGenerationSizeMb: 4 },
-      },
+      workerOptions,
       maxWorkers: 1,
     });
     try {
