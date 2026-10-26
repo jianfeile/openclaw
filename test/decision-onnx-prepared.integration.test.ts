@@ -52,13 +52,11 @@ it("runs registered ONNX decisions through the prepared catalog and local auth w
   });
   fs.writeFileSync(
     fixture.runtimeSource,
-    [
-      'const trace = globalThis[Symbol.for("openclaw.test.onnx-prepared-decisions")];',
-      'module.exports = { id: "onnx", register(api) {',
-      "api.registerDecisionProvider(trace.provider);",
-      "trace.runtime = api.runtime.decisions;",
-      "} };",
-    ].join("\n"),
+    `const trace = globalThis[Symbol.for("openclaw.test.onnx-prepared-decisions")];
+module.exports = { id: "onnx", register(api) {
+api.registerDecisionProvider(trace.provider);
+trace.runtime = api.runtime.decisions;
+} };`,
   );
   const cfg: OpenClawConfig = {
     agents: {
@@ -102,6 +100,7 @@ it("runs registered ONNX decisions through the prepared catalog and local auth w
         criteria: { true: "Work is needed", false: "No work is needed" },
       },
     };
+    const batch = { state: { type: "text" as const, text: "The work is needed" }, questions };
     const expected = {
       status: "ok",
       result: {
@@ -110,22 +109,17 @@ it("runs registered ONNX decisions through the prepared catalog and local auth w
         usage: { inputTokens: 7 },
       },
     };
-    const v2Result = await runtime.evaluateV2(
-      { state: { type: "text", text: "The work is needed" }, questions },
-      { ...options(), reasoning: "auto" },
-    );
+    const v2Result = await runtime.evaluateV2(batch, { ...options(), reasoning: "auto" });
     expect(v2Result, JSON.stringify(v2Result)).toMatchObject(expected);
     const v1Result = await runtime.evaluate({ state: "The work is needed", questions }, options());
     expect(v1Result, JSON.stringify(v1Result)).toMatchObject(expected);
     expect(classify).toHaveBeenCalledTimes(2);
     expect(classify.mock.calls[0]?.[0]).toBe("gliclass-edge-v3.0");
     expect(classify.mock.calls[0]?.[3]).toBeTypeOf("function");
-    expect(
-      await runtime.evaluateV2(
-        { state: { type: "text", text: "The work is needed" }, questions },
-        { ...options(), reasoning: "on" },
-      ),
-    ).toEqual({ status: "unavailable", reason: "unsupported-input" });
+    expect(await runtime.evaluateV2(batch, { ...options(), reasoning: "on" })).toEqual({
+      status: "unavailable",
+      reason: "unsupported-input",
+    });
     expect(classify).toHaveBeenCalledTimes(2);
   });
 });
