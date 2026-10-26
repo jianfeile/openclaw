@@ -22,6 +22,11 @@ const { prepareConversationRouteOwnersAsync: prepareSlackConversationRouteOwners
   slackConversationRouteOwners;
 
 const room = { channel: "slack", accountId: "default", conversationId: "channel:C123" };
+const roomFor = (conversationId: string, parentConversationId?: string) => ({
+  ...room,
+  conversationId,
+  parentConversationId,
+});
 function capabilities(enabled: boolean) {
   return {
     adapterAvailable: enabled,
@@ -83,11 +88,8 @@ it("prepares thread, parent, and configured owners without touching binding live
     ["thread-1", "C111", "finance"],
     ["C222", undefined, "ops"],
   ] as const) {
-    const bound = await bind(`agent:${agentId}:bound`, {
-      ...room,
-      conversationId,
-      ...(parentConversationId ? { parentConversationId } : {}),
-    });
+    const ref = roomFor(conversationId, parentConversationId);
+    const bound = await bind(`agent:${agentId}:bound`, ref);
     await service.touchAsync(bound.bindingId, 1234);
   }
   const inputs = [
@@ -101,15 +103,8 @@ it("prepares thread, parent, and configured owners without touching binding live
     return () => inspections;
   });
   expect(prepared.map((resolve) => resolve())).toEqual(expected);
-  expect(
-    (
-      await service.resolveByConversationAsync({
-        ...room,
-        conversationId: "thread-1",
-        parentConversationId: "C111",
-      })
-    )?.metadata?.lastActivityAt,
-  ).toBe(1234);
+  const thread = await service.resolveByConversationAsync(roomFor("thread-1", "C111"));
+  expect(thread?.metadata?.lastActivityAt).toBe(1234);
 });
 
 it("does not advertise, select, or mutate bindings for a detected org install", async () => {
