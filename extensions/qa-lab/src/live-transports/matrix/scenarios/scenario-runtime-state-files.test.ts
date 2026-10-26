@@ -64,7 +64,7 @@ const expectNoCursor = (stateDir: string) =>
 it.each(["accountId", "userId"] as const)(
   "ignores stale sidecar %s and selects only the requested SQLite identity",
   async (field) => {
-    const stateDir = await createStateDir();
+    const stateDir = createStateDir();
     const other = path.join(stateDir, "matrix", "accounts", "aa-other");
     const target = path.join(stateDir, "matrix", "accounts", "zz-target");
     await seedSyncStore(other, { metadata: { ...identity, [field]: "other" } });
@@ -99,10 +99,10 @@ it.each(["accountId", "userId"] as const)(
 );
 
 it("finds a boundary-depth cursor after deeper subtrees and skips linked state", async () => {
-  const stateDir = await createStateDir();
+  const stateDir = createStateDir();
   const levels = Array.from({ length: 8 }, (_, index) => `d${index}`);
   const target = path.join(stateDir, "zz-target", ...levels);
-  const linked = await createStateDir();
+  const linked = createStateDir();
   for (const root of [path.join(stateDir, "aa-too-deep", ...levels, "extra"), linked]) {
     await seedSyncStore(root, { cursor: "excluded-cursor" });
   }
@@ -116,7 +116,7 @@ it("finds a boundary-depth cursor after deeper subtrees and skips linked state",
 });
 
 it("observes only the requested account's completed ingress event", async () => {
-  const stateDir = await createStateDir();
+  const stateDir = createStateDir();
   const eventId = "$event";
   const accountId = "sut";
   const makeQueue = (id: string) =>

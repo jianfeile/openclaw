@@ -43,7 +43,11 @@ it.each([
       const url = new URL(input instanceof Request ? input.url : input);
       if (url.pathname.includes("/send/m.reaction/")) {
         expect(init?.method).toBe("PUT");
-        expect(JSON.parse(String(init?.body))).toEqual({ "m.relates_to": relation });
+        const body = init?.body;
+        if (typeof body !== "string") {
+          throw new Error("Matrix reaction must send JSON text");
+        }
+        expect(JSON.parse(body)).toEqual({ "m.relates_to": relation });
         phases.push("send");
         return Response.json({ event_id: "$reaction" });
       }
@@ -99,7 +103,7 @@ it.each([
         echo ? "echo" : "option",
       );
     };
-    vi.stubGlobal("fetch", fetchImpl);
+    vi.stubGlobal("fetch", vi.fn(fetchImpl));
     const result = await run(context);
     expect(phases.at(-1)).toBe("decision");
     expect(result.details).toContain(`approval id: ${approvalId}`);
