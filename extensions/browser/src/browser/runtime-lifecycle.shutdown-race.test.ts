@@ -6,12 +6,32 @@ import {
   makeBrowserServerState,
   mockLaunchedChrome,
 } from "./server-context.test-harness.js";
+import * as serverLifecycle from "./server-lifecycle.js";
 
 const mocks = vi.hoisted(() => ({
   chunksRemoved: false,
+  relayRemoved: false,
+  disposeRelay: vi.fn(),
+  handlers: new Set<(reason: unknown) => boolean>(),
   closeChromeMcpSession: vi.fn(async () => false),
   stopOpenClawChrome: vi.fn(async (_running: RunningChrome) => {}),
 }));
+vi.mock("openclaw/plugin-sdk/runtime-env", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("openclaw/plugin-sdk/runtime-env")>()),
+  registerUnhandledRejectionHandler: vi.fn((handler: (reason: unknown) => boolean) => {
+    mocks.handlers.add(handler);
+    return () => {
+      mocks.handlers.delete(handler);
+    };
+  }),
+}));
+// mock-isolation: emulate removed installation chunks without loading a real Gateway relay.
+vi.mock("./extension-relay/gateway-relay-route.js", () => {
+  if (mocks.relayRemoved) {
+    throw new Error("installed Gateway extension relay chunk was removed");
+  }
+  return { disposeGatewayExtensionRelay: mocks.disposeRelay };
+});
 
 // mock-isolation: shutdown races use synthetic Chrome handles, not native browser processes.
 vi.mock("./chrome.js", () => ({ stopOpenClawChrome: mocks.stopOpenClawChrome }));
@@ -29,7 +49,10 @@ vi.mock("./pw-ai-module.js", () => ({
   getPwAiModule: async () => null,
 }));
 
-const { stopBrowserBridgeRuntime, stopBrowserRuntime } = await import("./runtime-lifecycle.js");
+const { createBrowserRuntimeState, stopBrowserBridgeRuntime, stopBrowserRuntime } =
+  await import("./runtime-lifecycle.js");
+const { getGatewayExtensionRelayModule } = await import("./extension-relay.runtime.js");
+const { registerUnhandledRejectionHandler } = await import("openclaw/plugin-sdk/runtime-env");
 const { getChromeMcpModule } = await import("./chrome-mcp.runtime.js");
 const {
   enqueueProfileStart,
@@ -40,23 +63,73 @@ const {
 
 beforeEach(() => {
   getChromeMcpModule.clear();
+  getGatewayExtensionRelayModule.clear();
+  mocks.handlers.clear();
+  vi.clearAllMocks();
   mocks.chunksRemoved = false;
-  mocks.closeChromeMcpSession.mockReset().mockResolvedValue(false);
-  mocks.stopOpenClawChrome.mockReset().mockResolvedValue(undefined);
+  mocks.relayRemoved = false;
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   mocks.chunksRemoved = false;
+  mocks.relayRemoved = false;
 });
 
-it("closes an unused existing-session profile after its installation is replaced", async () => {
-  const profile = makeBrowserProfile({ name: "user", driver: "existing-session" });
-  const state = makeBrowserServerState({ profile });
-  getOrCreateProfileRuntime(state, profile);
-  mocks.chunksRemoved = true;
-  const clearState = vi.fn();
-  await stopBrowserRuntime({ current: state, clearState, onWarn: vi.fn() });
-  expect(clearState).toHaveBeenCalledOnce();
-  expect(mocks.closeChromeMcpSession).not.toHaveBeenCalled();
+const start = () =>
+  createBrowserRuntimeState({ resolved: makeBrowserServerState().resolved, port: 18791 });
+const stop = (current: Awaited<ReturnType<typeof start>>, clearState = vi.fn()) =>
+  stopBrowserRuntime({ current, clearState, onWarn: vi.fn() });
+const protocolError = (method: string, message = "No dialog is showing") =>
+  Object.assign(new Error(message), { method });
+
+it.each([false, true])(
+  "closes after installation rotation (relay acquired: %s)",
+  async (acquired) => {
+    const profile = makeBrowserProfile({ name: "user", driver: "existing-session" });
+    const state = makeBrowserServerState({ profile });
+    getOrCreateProfileRuntime(state, profile);
+    if (acquired) {
+      await getGatewayExtensionRelayModule();
+    }
+    mocks.chunksRemoved = true;
+    mocks.relayRemoved = true;
+    const clearState = vi.fn();
+    await stop(state, clearState);
+    expect(clearState).toHaveBeenCalledOnce();
+    expect(mocks.closeChromeMcpSession).not.toHaveBeenCalled();
+    expect(mocks.disposeRelay).toHaveBeenCalledTimes(acquired ? 1 : 0);
+  },
+);
+
+it.each([
+  [protocolError("Page.handleJavaScriptDialog"), true],
+  [new Error("Protocol error (Page.handleJavaScriptDialog): No dialog is showing"), true],
+  [
+    new Error("browser action failed", { cause: protocolError("Page.handleJavaScriptDialog") }),
+    true,
+  ],
+  [
+    { error: new Error("Protocol error (Dialog.handleJavaScriptDialog): No dialog is showing") },
+    true,
+  ],
+  [protocolError("Page.navigate"), false],
+  [new Error("Protocol error (Page.handleJavaScriptDialog): Target closed"), false],
+  [new Error("No dialog is showing"), false],
+] as const)("classifies Playwright rejection %#", async (error, handled) => {
+  const state = await start();
+  expect([...mocks.handlers][0]?.(error)).toBe(handled);
+  await stop(state);
+});
+
+it("retains the rejection handler through profile drain and removes it at shutdown", async () => {
+  vi.spyOn(serverLifecycle, "stopKnownBrowserProfiles").mockImplementationOnce(async () => {
+    expect(mocks.handlers.size).toBe(1);
+  });
+  const state = await start();
+  expect(registerUnhandledRejectionHandler).toHaveBeenCalledOnce();
+  expect(mocks.handlers.size).toBe(1);
+  await stop(state);
+  expect([...mocks.handlers]).toEqual([]);
 });
 
 it("invalidates every deferred start before draining late children and clearing state", async () => {
@@ -70,16 +143,14 @@ it("invalidates every deferred start before draining late children and clearing 
   });
   const runtimes = profiles.map((profile) => getOrCreateProfileRuntime(state, profile));
   const launches = profiles.map(() => createDeferred<RunningChrome>());
-  const entered = profiles.map(() => createDeferred<void>());
-  const startSignals: AbortSignal[] = [];
+  const entered = profiles.map(() => createDeferred<AbortSignal>());
   const starts = runtimes.map((runtime, index) =>
     enqueueProfileStart({
       state,
       runtime,
       key: "default",
       run: async (signal) => {
-        startSignals[index] = signal;
-        entered[index]?.resolve();
+        entered[index]?.resolve(signal);
         const running = await launches[index]!.promise;
         registerProfileHandle(runtime, running);
         signal.throwIfAborted();
@@ -87,7 +158,7 @@ it("invalidates every deferred start before draining late children and clearing 
       },
     }),
   );
-  await Promise.all(entered.map((gate) => gate.promise));
+  const startSignals = await Promise.all(entered.map((gate) => gate.promise));
   const children = [1, 2].map((pid) => mockLaunchedChrome(vi.fn(), pid));
   const clearState = vi.fn(() => {
     for (const runtime of runtimes) {
@@ -113,7 +184,7 @@ it("invalidates every deferred start before draining late children and clearing 
 
   launches.forEach((launch, index) => launch.resolve(children[index]!));
   await Promise.all(
-    starts.map(async (start) => await expect(start).rejects.toThrow(/lifecycle changed/i)),
+    starts.map(async (pending) => await expect(pending).rejects.toThrow(/lifecycle changed/i)),
   );
   await expect(stopping).resolves.toBeUndefined();
 

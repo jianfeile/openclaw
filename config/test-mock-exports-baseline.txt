@@ -120,8 +120,6 @@
 ["extensions/browser/src/browser/routes/dispatcher.path-normalization.test.ts","./index.js","b11e081638376a67cce7c3a120b8d30f1a7aeab1555efaea9a62459c43648233",1]
 ["extensions/browser/src/browser/routes/permissions.test.ts","../chrome.js","d342d89cfca44414b178b25d6c1b068debef984c0e3e836467be5848484831c5",1]
 ["extensions/browser/src/browser/runtime-lifecycle.shutdown-race.test.ts","./pw-ai-module.js","154f082f8fc9bb59607397f383fa9bbba837ed7b3f2ffddbddf393dd9b8e2373",1]
-["extensions/browser/src/browser/runtime-lifecycle.unhandled-rejections.test.ts","./extension-relay/gateway-relay-route.js","8613ae261dc52631db01a0a8964e8c0faf3ef170c416ae3f7c303a4c12c75964",1]
-["extensions/browser/src/browser/runtime-lifecycle.unhandled-rejections.test.ts","./server-lifecycle.js","91fc97fd6859ccd9e534211262207a68eba27bfc54f2eb73bc617b54339a103c",1]
 ["extensions/browser/src/browser/screencast/session.chromium.test.ts","../pw-ai-module.js","8e9bb9b467fd1fc39439b9ddbfd68f3a69075191fe18ce1234f06842a26b7022",1]
 ["extensions/browser/src/browser/screencast/session.test.ts","../pw-ai-module.js","8d2c5e1f8f0e7c033aca31fb2a259377804c76acb6799c027c7d6945790f8ccd",1]
 ["extensions/browser/src/browser/screencast/upgrade.test.ts","./session.js","2b25351335b5c5aef4693501afcfa80b913cd3e089f7620115d209830d47c6e2",1]
